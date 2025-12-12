@@ -1,4 +1,6 @@
 .idea
+**/cache/*.csv
+**/cache/*.txt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
