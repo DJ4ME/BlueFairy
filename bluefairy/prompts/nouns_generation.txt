@@ -1,0 +1,17 @@
+Given the domain context and the sentence below, extract only the names of relevant concepts.
+Concepts include:
+- actions
+- entities
+- objects
+- substances
+
+Rules:
+- Output one term per line.
+- Use singular form.
+- No explanations.
+- No pronouns.
+- No multi-word phrases longer than 3 words.
+- Do not invent terms.
+
+DOMAIN CONTEXT:
+{domain_context}

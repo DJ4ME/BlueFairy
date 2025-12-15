@@ -2,7 +2,12 @@ from enum import Enum
 from pathlib import Path
 
 PATH = Path(__file__).parent.resolve()
-PromptTask = Enum("PromptTask", "nouns_collection nouns_resolution norms_identification norms_translation")
+PromptTask = Enum("PromptTask",
+                  "context_identification "
+                  "nouns_generation "
+                  "nouns_classification "
+                  "norms_identification "
+                  "norms_translation")
 
 
 def load_system_prompt(prompt_task: PromptTask) -> str:

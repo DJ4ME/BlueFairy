@@ -1,0 +1,14 @@
+Classify the term below for use in a propositional logic language.
+
+Roles:
+- predicate: an action or relation
+- constant: an entity, object, substance, or concept
+- undefined: anything else
+
+Return only one word: predicate, constant, or undefined.
+
+DOMAIN CONTEXT:
+{domain_context}
+
+TERM:
+

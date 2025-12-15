@@ -1,0 +1,11 @@
+You are given a set of textual norms.
+Write a short neutral description of the application domain.
+Do not list rules, obligations, or prohibitions.
+Describe only:
+- main entities
+- main actions
+- main concepts
+
+Use plain English.
+No bullet points.
+No explanations.
