@@ -1,5 +1,6 @@
 .idea
 test/data/*.json
+test/data/*.csv
 **/cache/*.csv
 **/cache/*.txt
 

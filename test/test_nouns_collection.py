@@ -2,7 +2,7 @@ import unittest
 from test.cache import PATH as CACHE_PATH
 from bluefairy.nouns.utils import NounsCollection, Stakeholder, Role
 from test.data import StakeholderName, load_textual_norms
-from bluefairy.nouns.collection import (
+from bluefairy.nouns import (
     run_context_identification,
     run_nouns_generation,
     run_nouns_cleaning,

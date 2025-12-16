@@ -8,6 +8,8 @@ LabeledNoun = tuple[Noun, Role]
 LabeledNouns = dict[Noun: Role]
 TextualNorm = str
 TextualNorms = list[TextualNorm]
+LogicalNorm = str
+LogicalNorms = list[LogicalNorm]
 
 
 class Stakeholder:

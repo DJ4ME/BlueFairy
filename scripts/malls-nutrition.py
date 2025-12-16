@@ -3,9 +3,9 @@ from test.data import PATH as DATA_PATH
 
 SPLITS = {'train': 'MALLS-v0.1-train.json', 'test': 'MALLS-v0.1-test.json'}
 TRAIN_FILE = DATA_PATH / SPLITS['train']
-TRAIN_NUTRITION_FILE = DATA_PATH / 'MALLS-nutrition-train.json'
+TRAIN_NUTRITION_FILE = DATA_PATH / 'MALLS-nutrition-train.csv'
 TEST_FILE = DATA_PATH / SPLITS['test']
-TEST_NUTRITION_FILE = DATA_PATH / 'MALLS-nutrition-test.json'
+TEST_NUTRITION_FILE = DATA_PATH / 'MALLS-nutrition-test.csv'
 
 
 def download_malls_nutrition_data() -> None:
@@ -23,9 +23,9 @@ def download_malls_nutrition_data() -> None:
 
 def filter_nutrition_related_data(df: pd.DataFrame) -> pd.DataFrame:
     nutrition_keywords = [
-        'nutrition', 'calorie', 'vitamin', 'mineral', 'protein', 'carbohydrate','fat',
-        'fiber', 'sugar', 'sodium', 'dietary', 'nutrient', 'health', 'healthy', 'wellness'
-    ]
+    'calorie', 'carbohydrate', 'diet', 'dietary', 'fat', 'fiber',
+    'food', 'nutrition', 'nutrient', 'protein', 'sugar', 'vitamin'
+]
 
     def is_nutrition_related(text):
         text_lower = text.lower()
@@ -42,9 +42,9 @@ if __name__ == "__main__":
     # Process training data
     train_df = pd.read_json(TRAIN_FILE)
     nutrition_train_df = filter_nutrition_related_data(train_df)
-    nutrition_train_df.to_json(TRAIN_NUTRITION_FILE, orient='records', lines=False)
+    nutrition_train_df.to_csv(TRAIN_NUTRITION_FILE, index=False)
 
     # Process testing data
     test_df = pd.read_json(TEST_FILE)
     nutrition_test_df = filter_nutrition_related_data(test_df)
-    nutrition_test_df.to_json(TEST_NUTRITION_FILE, orient='records', lines=False)
+    nutrition_test_df.to_csv(TEST_NUTRITION_FILE, index=False)
