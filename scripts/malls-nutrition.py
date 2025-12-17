@@ -3,9 +3,9 @@ from test.data import PATH as DATA_PATH
 
 SPLITS = {'train': 'MALLS-v0.1-train.json', 'test': 'MALLS-v0.1-test.json'}
 TRAIN_FILE = DATA_PATH / SPLITS['train']
-TRAIN_NUTRITION_FILE = DATA_PATH / 'MALLS-nutrition-train.csv'
+TRAIN_NUTRITION_FILE = DATA_PATH / 'MALLS-nutrition-test.csv'
 TEST_FILE = DATA_PATH / SPLITS['test']
-TEST_NUTRITION_FILE = DATA_PATH / 'MALLS-nutrition-test.csv'
+TEST_NUTRITION_FILE = DATA_PATH / 'MALLS-nutrition-examples.csv'
 
 
 def download_malls_nutrition_data() -> None:
@@ -23,15 +23,29 @@ def download_malls_nutrition_data() -> None:
 
 def filter_nutrition_related_data(df: pd.DataFrame) -> pd.DataFrame:
     nutrition_keywords = [
-    'calorie', 'carbohydrate', 'diet', 'dietary', 'fat', 'fiber',
-    'food', 'nutrition', 'nutrient', 'protein', 'sugar', 'vitamin'
-]
+        'calorie', 'carbohydrate', 'diet', 'dietary', 'fiber',
+        'food', 'nutrition', 'nutrient', 'protein', 'sugar', 'vitamin'
+    ]
+    nutrition_stop_terms = [
+        'predator', 'refrigerator', 'oven', 'microwave', 'organism', 'carnivorous', 'fridge', 'chemical', 'forest',
+        'river', 'bakery', 'party', 'island', 'ecosystem', 'mammal', 'chef', 'restaurant', 'plant', 'fabric', 'habitat',
+        'kitchen', 'tree', 'environment', 'music', 'garden', 'farmer', 'dishwasher', 'freezer', 'coral', 'bird',
+        'navigate', 'hunt', 'city', 'library', 'carnivore'
+    ]
+
 
     def is_nutrition_related(text):
         text_lower = text.lower()
         return any(keyword in text_lower for keyword in nutrition_keywords)
 
+    def is_not_nutrition_related(text):
+        text_lower = text.lower()
+        # If any stop term is found, it's not nutrition related
+        return any(stop_term in text_lower for stop_term in nutrition_stop_terms)
+
+
     filtered_df = df[df['NL'].apply(is_nutrition_related) | df['FOL'].apply(is_nutrition_related)]
+    filtered_df = filtered_df[~(filtered_df['NL'].apply(is_not_nutrition_related) | filtered_df['FOL'].apply(is_not_nutrition_related))]
     print(f"Filtered {len(filtered_df)} nutrition-related entries out of {len(df)} total entries.")
     return filtered_df
 

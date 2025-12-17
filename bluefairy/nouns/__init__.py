@@ -7,8 +7,8 @@ from bluefairy.prompts import PromptTask, load_system_prompt, PATH
 
 OLLAMA_SERVICE = OllamaService(OLLAMA_URL, OLLAMA_PORT)
 OLLAMA_MODEL = "phi3.5:latest"
-TEMPERATURE = 0.0
-NOUNS_FILE = "nouns_collection.csv"
+DEFAULT_TEMPERATURE = 0.0
+DEFAULT_NOUNS_FILE = "nouns_collection.csv"
 HEADER = "Noun,Role\n"
 
 
@@ -47,12 +47,12 @@ def run_context_identification(norms: TextualNorms) -> str:
     # unfold the list into a single string with new lines between each norm
     textual_norm = '\n'.join(norms)
     print("Identifying the context of the textual norms...")
-    response = ollama_model.ask(textual_norm, max_output=2048, temperature=TEMPERATURE)
+    response = ollama_model.ask(textual_norm, max_output=2048, temperature=DEFAULT_TEMPERATURE)
     print("Context identification completed.")
     return response.strip()
 
 
-def run_nouns_generation(norms: TextualNorms, context: str, file = PATH / NOUNS_FILE) -> None:
+def run_nouns_generation(norms: TextualNorms, context: str, file = PATH / DEFAULT_NOUNS_FILE) -> None:
     """
     Step 1.2
     The function asks an LLM to generate a list of relevant nouns that are present in each norm.
@@ -74,7 +74,7 @@ def run_nouns_generation(norms: TextualNorms, context: str, file = PATH / NOUNS_
     size = len(norms)
     for norm in norms:
         print(f"Processing textual norm {norms.index(norm)+1}/{size}")
-        response = ollama_model.ask(norm, max_output=1024, temperature=TEMPERATURE)
+        response = ollama_model.ask(norm, max_output=1024, temperature=DEFAULT_TEMPERATURE)
         # collect each noun, assume they are separated by new lines or commas
         nouns = re.split(r"[\n,]+", response.strip())
         # append the nouns to the nouns file
@@ -84,7 +84,7 @@ def run_nouns_generation(norms: TextualNorms, context: str, file = PATH / NOUNS_
                 _file.write(f"{noun},{Role.undefined.name}\n")
 
 
-def run_nouns_cleaning(file = PATH / NOUNS_FILE) -> None:
+def run_nouns_cleaning(file =PATH / DEFAULT_NOUNS_FILE) -> None:
     """
     Step 1.3
     The function cleans the nouns file from duplicates and inconsistent or irrelevant nouns.
@@ -170,7 +170,7 @@ def run_nouns_cleaning(file = PATH / NOUNS_FILE) -> None:
             _file.write(f"{noun},{role}\n")
 
 
-def run_nouns_classification(context: str, file = PATH / NOUNS_FILE) -> None:
+def run_nouns_classification(context: str, file =PATH / DEFAULT_NOUNS_FILE) -> None:
     """
     Step 1.4
     The function asks an LLM to classify each noun in the nouns file with a role.
@@ -199,7 +199,7 @@ def run_nouns_classification(context: str, file = PATH / NOUNS_FILE) -> None:
             continue
         print(f"Classifying noun '{noun}' ({idx+1}/{size})")
         idx += 1
-        response = ollama_model.ask(noun, max_output=256, temperature=TEMPERATURE)
+        response = ollama_model.ask(noun, max_output=256, temperature=DEFAULT_TEMPERATURE)
         # extract only the first word as the classified role and parse it
         classified_role = response.strip().split()[0].lower().replace('"', '').replace("'", "")
         if classified_role in [role.name for role in Role]:
@@ -210,7 +210,7 @@ def run_nouns_classification(context: str, file = PATH / NOUNS_FILE) -> None:
     nouns_collection.save_nouns_to_csv(file)
 
 
-def run_nouns_collection(stakeholders: list[Stakeholder], file = PATH / NOUNS_FILE) -> None:
+def run_nouns_collection(stakeholders: list[Stakeholder], file = PATH / DEFAULT_NOUNS_FILE) -> None:
     """
     Main function to run the nouns collection process.
     :param stakeholders: the list of stakeholders with their norms
