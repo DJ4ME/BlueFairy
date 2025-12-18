@@ -2,8 +2,10 @@ import os
 from core import LanguageModelProvider, LanguageModel
 import requests
 import json
+from pathlib import Path
 
 
+PATH = Path(__file__).parent.resolve()
 OLLAMA_URL = os.getenv('OLLAMA_URL') if os.getenv('OLLAMA_URL') is not None else 'localhost'
 OLLAMA_PORT = 11434
 

@@ -1,7 +1,7 @@
 import unittest
-import pandas as pd
 from bluefairy.norms import textual_norm_to_logic_norm
 from ollamaUtils import OllamaService, OLLAMA_URL, OLLAMA_PORT
+from test import check_formula
 from test.data import load_examples
 
 
@@ -19,8 +19,10 @@ class TestNormsTranslation(unittest.TestCase):
         logic_textual_norm = textual_norm_to_logic_norm(self.provider, self.unhealthy_norm)
         self.assertIsInstance(logic_textual_norm, str)
         self.assertGreater(len(logic_textual_norm), 0)
+        self.assertTrue(check_formula(logic_textual_norm))
 
     def test_textual_norm_to_logic_norm_with_examples(self):
         logic_textual_norm = textual_norm_to_logic_norm(self.provider, self.unhealthy_norm, self.examples)
         self.assertIsInstance(logic_textual_norm, str)
         self.assertGreater(len(logic_textual_norm), 0)
+        self.assertTrue(check_formula(logic_textual_norm))
