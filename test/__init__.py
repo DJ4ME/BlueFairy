@@ -4,6 +4,8 @@ LOGICAL_OPERATORS = {"∧", "∨", "¬", "→", "↔", "⊕"}
 QUANTIFIERS = {"∀", "∃"}
 PREDICATE_PATTERN = re.compile(r"([A-Z][A-Za-z0-9_]*)\((.*?)\)")
 VARIABLE_PATTERN = re.compile(r"[a-z][A-Za-z0-9_]*")
+PREDICATE_CALL_PATTERN = re.compile(r"[A-Z][A-Za-z0-9_]*\s*\(([^()]*)\)")
+QUANTIFIER_PATTERN = re.compile(r"[∀∃]\s*([a-z][A-Za-z0-9_]*)")
 
 
 def check_parentheses_balance(formula: str) -> (bool, str):
@@ -58,10 +60,23 @@ def extract_predicates_with_args(formula: str) -> list:
     return results
 
 
-def check_variables_usage(formula: str, declared_vars: set) -> (bool, str):
-    vars_found = set(VARIABLE_PATTERN.findall(formula))
-    # remove predicate names or accidental uppercase tokens
-    vars_found = {v for v in vars_found if v[0].islower()}
+def extract_variables(formula: str) -> set:
+    variables = set()
+
+    for v in QUANTIFIER_PATTERN.findall(formula):
+        variables.add(v)
+
+    for args in PREDICATE_CALL_PATTERN.findall(formula):
+        parts = [p.strip() for p in args.split(",")]
+        for p in parts:
+            if p and p[0].islower():
+                variables.add(p)
+
+    return variables
+
+
+def check_variables_usage(formula: str, declared_vars: set):
+    vars_found = extract_variables(formula)
 
     undeclared = vars_found - declared_vars
 

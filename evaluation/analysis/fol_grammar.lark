@@ -1,0 +1,56 @@
+%import common.WS_INLINE
+%ignore WS_INLINE
+
+AND: "∧"
+OR: "∨"
+XOR: "⊕"
+IMP: "→"
+IFF: "↔"
+UNARY_OP: "¬"
+
+FORALL: "∀"
+EXISTS: "∃"
+
+NUM_COMP: /[<>≥≤]\d+/
+
+variable: /[a-z](?![a-z0-9_])/
+constant: /[a-z][A-Za-z0-9_]*/
+PRED: /[A-Z][A-Za-z0-9_]*/
+
+?term: predicate_application
+     | variable
+     | constant
+     | NUM_COMP
+     | "(" formula ")"
+
+predicate_application: PRED "(" [arguments] ")"
+arguments: term ("," term)*
+
+?formula: iff_expr
+
+?iff_expr: implication
+         | implication IFF iff_expr      -> binary_formula
+
+?implication: xor_expr
+            | xor_expr IMP implication   -> binary_formula
+
+?xor_expr: or_expr
+         | or_expr XOR xor_expr          -> binary_formula
+
+?or_expr: and_expr
+        | or_expr OR and_expr           -> binary_formula
+
+?and_expr: unary_expr
+         | and_expr AND unary_expr      -> binary_formula
+
+?unary_expr: UNARY_OP unary_expr         -> unary_formula
+           | quantified_formula
+           | atom
+           | "(" formula ")"
+
+quantified_formula: quantifier_list formula
+quantifier_list: (FORALL variable | EXISTS variable)+
+
+?atom: predicate_application
+     | variable
+     | constant
