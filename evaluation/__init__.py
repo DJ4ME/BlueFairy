@@ -40,24 +40,32 @@ if __name__ == "__main__":
 
     # With examples
     for llm in LLM_FOR_TESTING:
+        file = RESULTS_PATH / f"{llm.replace(':', '_')}_examples.csv"
+        if file.exists():
+            print(f"Skipping norms translation tests for model: {llm} as results file already exists.\n\n")
+            continue
         print(f"Running norms translation tests with examples for model: {llm}")
         translate_norms(
             provider=OllamaService(OLLAMA_URL, OLLAMA_PORT),
             model_name=llm,
             norms=test_set['NL'].tolist(),
             examples=examples_txt,
-            output_file=RESULTS_PATH / f"{llm.replace(':', '_')}_examples.csv"
+            output_file=file
         )
         print(f"Completed norms translation tests for model: {llm}\n\n")
 
     # Without examples
     for llm in LLM_FOR_TESTING:
+        file = RESULTS_PATH / f"{llm.replace(':', '_')}_no_examples.csv"
+        if file.exists():
+            print(f"Skipping norms translation tests for model: {llm} as results file already exists.\n\n")
+            continue
         print(f"Running norms translation tests without examples for model: {llm}")
         translate_norms(
             provider=OllamaService(OLLAMA_URL, OLLAMA_PORT),
             model_name=llm,
             norms=test_set['NL'].tolist(),
             examples="",
-            output_file=RESULTS_PATH / f"{llm.replace(':', '_')}_no_examples.csv"
+            output_file=file
         )
         print(f"Completed norms translation tests for model: {llm}\n\n")
