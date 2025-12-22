@@ -40,7 +40,8 @@ if __name__ == "__main__":
 
     # With examples
     for llm in LLM_FOR_TESTING:
-        file = RESULTS_PATH / f"{llm.replace(':', '_')}_examples.csv"
+        pattern_name = llm.replace(':', '_').replace('\\', '_').replace('/', '_')
+        file = RESULTS_PATH / f"{pattern_name}_examples.csv"
         if file.exists():
             print(f"Skipping norms translation tests for model: {llm} as results file already exists.\n\n")
             continue
