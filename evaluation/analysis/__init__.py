@@ -2,10 +2,11 @@ import re
 import pandas as pd
 from io import StringIO
 from pathlib import Path
+
+from evaluation.analysis.malls_fol_parser import is_valid_fol_malls
 from evaluation.data import load_test_set
 from evaluation.results import PATH as RESULTS_PATH
-from evaluation.analysis.utils import compare_fol, parse_fol, is_valid_fol
-
+from evaluation.analysis.utils import compare_fol, parse_fol, is_valid_fol, is_valid_fol_closed
 
 PATH = Path(__file__).parent.resolve()
 
@@ -87,7 +88,11 @@ def validate_model_translations(prediction: pd.DataFrame, expected: pd.DataFrame
     )
     # Check syntax correctness of PredictedFOL
     merged['syntax_valid'] = merged['PredictedFOL'].apply(
-        lambda fol: is_valid_fol(fol)
+        lambda fol: is_valid_fol_closed(fol)
+    )
+    # Check syntax correctness using the original MALLS dataset parser
+    merged['syntax_valid_malls'] = merged['PredictedFOL'].apply(
+        lambda fol: is_valid_fol_malls(fol)
     )
     return merged
 
@@ -108,6 +113,7 @@ if __name__ == "__main__":
         print(f"Total samples: {total}")
         print(f"Correctly matched expected: {correct} ({(correct / total) * 100:.2f}%)")
         print(f"Syntax valid: {syntax_correct} ({(syntax_correct / total) * 100:.2f}%)")
+        print(f"Syntax valid (MALLS parser): {validation_df['syntax_valid_malls'].sum()} ({(validation_df['syntax_valid_malls'].sum() / total) * 100:.2f}%)")
         # Save validation results
         validation_file = PATH / f"validation_{result_file.name}"
         validation_df.to_csv(validation_file, index=False)

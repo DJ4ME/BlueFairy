@@ -1,56 +1,41 @@
-%import common.WS_INLINE
-%ignore WS_INLINE
+// FOL grammar
+%import common.WS
+%ignore WS
 
+// Terminals
+QUANT: "∀" | "∃"
+NOT: "¬"
 AND: "∧"
 OR: "∨"
 XOR: "⊕"
-IMP: "→"
+IMPL: "→"
 IFF: "↔"
-UNARY_OP: "¬"
-
-FORALL: "∀"
-EXISTS: "∃"
-
-NUM_COMP: /[<>≥≤]\d+/
-
-variable: /[a-z](?![a-z0-9_])/
-constant: /[a-z][A-Za-z0-9_]*/
+LPAR: "("
+RPAR: ")"
+COMMA: ","
+VAR: /[a-z]/
+CONST: /[a-z][a-z0-9_]*/
 PRED: /[A-Z][A-Za-z0-9_]*/
 
-?term: predicate_application
-     | variable
-     | constant
-     | NUM_COMP
-     | "(" formula ")"
 
-predicate_application: PRED "(" [arguments] ")"
-arguments: term ("," term)*
+// Non-terminals
+?start: sentence
 
-?formula: iff_expr
+?sentence: formula
+         | quantifier formula   -> quantified_sentence
 
-?iff_expr: implication
-         | implication IFF iff_expr      -> binary_formula
+?quantifier: QUANT VAR+         -> multi_quant
 
-?implication: xor_expr
-            | xor_expr IMP implication   -> binary_formula
+?formula: literal
+        | NOT formula        -> neg
+        | LPAR formula RPAR
+        | formula bin_op formula  -> binop
 
-?xor_expr: or_expr
-         | or_expr XOR xor_expr          -> binary_formula
+?literal: PRED LPAR terms RPAR   -> pred
 
-?or_expr: and_expr
-        | or_expr OR and_expr           -> binary_formula
+bin_op: XOR | OR | AND | IMPL | IFF
 
-?and_expr: unary_expr
-         | and_expr AND unary_expr      -> binary_formula
+?terms: term (COMMA term)*
 
-?unary_expr: UNARY_OP unary_expr         -> unary_formula
-           | quantified_formula
-           | atom
-           | "(" formula ")"
-
-quantified_formula: quantifier_list formula
-quantifier_list: (FORALL variable | EXISTS variable)+
-
-?atom: predicate_application
-     | variable
-     | constant
+?term: VAR
+      | CONST
