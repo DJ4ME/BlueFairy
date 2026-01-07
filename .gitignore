@@ -2,6 +2,8 @@
 ollamaUtils/models.json
 test/data/*.json
 test/data/*.csv
+evaluation/**/*.csv
+evaluation/**/*.pdf
 **/cache/*.csv
 **/cache/*.txt
 

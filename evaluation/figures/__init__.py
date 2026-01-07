@@ -32,6 +32,7 @@ def plot_llm_performance(
     Generate a pdf plot showing LLM performance.
     Each column in the DataFrame represents an LLM model,
     and each row represents if the model's output was correct (true) or incorrect (false).
+    Results of the same model but different configurations (_examples and _no_examples) are grouped together.
     Y-axis: Percentage of correct outputs
     X-axis: LLM models by name
     :param data: DataFrame with LLM performance data
@@ -46,18 +47,42 @@ def plot_llm_performance(
         performance[column] = (correct_count / total_count) * 100  # percentage
 
     plt.clf()
-    plt.figure(figsize=(10, 6))
-    # Update performance keys: remove validation_ at the beginning and _examples or _no_examples at the end
-    performance = {
-        key.replace("validation_", "").replace("_examples", "").replace("_no_examples", ""): value
-        for key, value in performance.items()
-    }
-    plt.bar([MODELS_PRETTY_NAMES.get(model) for model in performance.keys()], performance.values(), color='skyblue')
+    plt.figure(figsize=(12, 7))
+
+    # Group results by model and configuration
+    grouped_performance = {}
+    for key, value in performance.items():
+        base_key = key.replace("validation_", "").replace("_no_examples", "").replace("_examples", "")
+        if base_key not in grouped_performance:
+            grouped_performance[base_key] = {}
+        if "_no_examples" in key:
+            grouped_performance[base_key]["no_examples"] = value
+        elif "_examples" in key:
+            grouped_performance[base_key]["examples"] = value
+
+    # Prepare data for plotting
+    models = []
+    examples_values = []
+    no_examples_values = []
+    for model, configs in grouped_performance.items():
+        models.append(MODELS_PRETTY_NAMES.get(model, model))
+        examples_values.append(configs.get("examples", 0))
+        no_examples_values.append(configs.get("no_examples", 0))
+
+    # Plot bars
+    x = range(len(models))
+    bar_width = 0.4
+    plt.bar([i - bar_width / 2 for i in x], examples_values, width=bar_width, color='blue', label='Examples')
+    plt.bar([i + bar_width / 2 for i in x], no_examples_values, width=bar_width, color='orange', label='No Examples')
+
+    # Add labels and legend
     plt.xlabel('LLM Models')
     plt.ylabel(y_axis_title)
     plt.title('LLM Performance Comparison')
-    plt.ylim(0, min(100, max(performance.values()) + 10))
-    plt.xticks(rotation=45, ha='right')
+    plt.ylim(0, min(100, max(examples_values + no_examples_values) + 10))
+    plt.xticks(x, models, rotation=45, ha='right')
+    plt.legend(loc='upper left')
+
     plt.tight_layout()
     plt.savefig(output_file)
     plt.close()

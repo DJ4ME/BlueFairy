@@ -1,9 +1,12 @@
 import re
+from pathlib import Path
+
 from lark import Lark
 from lark.exceptions import LarkError
 from Levenshtein import distance as levenshtein
 
 
+PATH = Path(__file__).parent.resolve()
 ALLOWED_LOGIC_OPS = ["∧", "∨", "⊕", "→", "↔"]
 UNARY_OPS = ["¬"]
 COMP_OPS = ["<", ">", "<=", ">=", "="]
@@ -12,7 +15,7 @@ PRED_DEFAULT_THRESHOLD = 0.8
 OP_DEFAULT_THRESHOLD = 0.9
 
 parser = Lark.open(
-    "fol_grammar.lark",
+    str(PATH / "fol_grammar.lark"),
     parser="lalr",
     start="formula",
     propagate_positions=True,
@@ -79,6 +82,8 @@ class FOLTransformer(Transformer):
 
 def is_valid_fol(formula: str) -> bool:
     """Check if a FOL formula is syntactically valid."""
+    if not isinstance(formula, str):
+        return False
     try:
         parser.parse(formula)
         return True
@@ -159,6 +164,10 @@ def compare_fol(
         pred_threshold: float = PRED_DEFAULT_THRESHOLD,
         op_threshold: float = OP_DEFAULT_THRESHOLD
 ) -> bool:
+
+    if not isinstance(formula_a, str) or not isinstance(formula_b, str):
+        return False
+
     # Tokenize
     a = tokenize(formula_a)
     b = tokenize(formula_b)

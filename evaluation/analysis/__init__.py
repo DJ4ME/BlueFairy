@@ -1,12 +1,55 @@
-from pathlib import Path
 import re
 import pandas as pd
-from evaluation.analysis.utils import compare_fol, parse_fol, is_valid_fol
-from evaluation.results import PATH as RESULTS_PATH
+from io import StringIO
+from pathlib import Path
 from evaluation.data import load_test_set
+from evaluation.results import PATH as RESULTS_PATH
+from evaluation.analysis.utils import compare_fol, parse_fol, is_valid_fol
 
 
 PATH = Path(__file__).parent.resolve()
+
+def load_sanitized_result(file_path: Path) -> pd.DataFrame:
+    """
+    Sanitizes the results file to ensure that the LogicalNorm column is properly quoted.
+    The original file is not modified; instead, a sanitized DataFrame is returned.
+    :param file_path: the path to the results file
+    :return: the sanitized DataFrame
+    """
+    with open(file_path, 'r', encoding='utf-8') as f:
+        lines = f.readlines()
+    header = lines[0].strip()
+    sanitized_lines = [header + '\n']
+    for line in lines[1:]:
+        pattern = r'^(.*?),(".*?"),(\".*\"|[^"].*[^"]|".*|.*)$'
+        match = re.match(pattern, line.strip())
+        if match:
+            stakeholder = match.group(1).strip()
+            textual_norm = match.group(2).strip()
+            logical_norm = match.group(3).strip()
+            # Ensure logical_norm is properly quoted
+            if logical_norm.startswith("'"):
+                logical_norm = logical_norm.replace("'", '"')
+            if logical_norm.endswith("'"):
+                logical_norm = logical_norm.replace("'", '"')
+            if logical_norm.endswith(',"'):
+                logical_norm += '"'
+            if logical_norm.startswith('"') and not logical_norm.endswith('"'):
+                logical_norm = f'{logical_norm}"'
+            elif logical_norm.endswith('"') and not logical_norm.startswith('"'):
+                logical_norm = f'"{logical_norm}'
+            elif not logical_norm.startswith('"') and not logical_norm.endswith('"'):
+                logical_norm = f'"{logical_norm}"'
+            if logical_norm.count('"') % 2 != 0:
+                logical_norm = logical_norm[:-1]
+            sanitized_line = f'{stakeholder},{textual_norm},{logical_norm}\n'
+            sanitized_lines.append(sanitized_line)
+        else:
+            sanitized_lines.append(line)
+    sanitized_content = ''.join(sanitized_lines)
+    sanitized_df = pd.read_csv(StringIO(sanitized_content))
+    return sanitized_df
+
 
 def lowercase_constants(formula: str) -> str:
     pattern = r'\b([A-Z][A-Za-z0-9_]*)\b(?!\()'
@@ -56,7 +99,7 @@ if __name__ == "__main__":
     expected_df['FOL'] = expected_df['FOL'].apply(lowercase_constants)
     for result_file in all_result_files:
         print(f"Validating results in file: {result_file.name}")
-        predictions_df = pd.read_csv(result_file)
+        predictions_df = load_sanitized_result(result_file)
         validation_df = validate_model_translations(predictions_df, expected_df)
         # Print accuracy summary
         total = len(validation_df)
