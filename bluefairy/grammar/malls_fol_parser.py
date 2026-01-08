@@ -1,3 +1,8 @@
+# This file is part of the FOL parser used for the MALLS dataset.
+# The original file is available at this url https://github.com/gblackout/LogicLLaMA/blob/main/fol_parser.py
+# All rights reserved to the original author.
+# This is used as a benchmark to validate our own FOL parser written in a more structured way with Lark.
+
 import re
 import nltk
 from copy import deepcopy

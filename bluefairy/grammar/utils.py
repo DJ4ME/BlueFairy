@@ -6,11 +6,13 @@ from Levenshtein import distance as levenshtein
 
 PATH = Path(__file__).parent.resolve()
 
+PRED_KEY = tuple[str, int]  # (predicate_name, arity)
 ALLOWED_LOGIC_OPS = ["∧", "∨", "⊕", "→", "↔"]
 UNARY_OPS = ["¬"]
 
 PRED_DEFAULT_THRESHOLD = 0.8
 OP_DEFAULT_THRESHOLD = 0.9
+MAX_SIMILARITY_SCORE = 999
 
 parser = Lark.open(
     str(PATH / "fol_grammar.lark"),
@@ -25,6 +27,48 @@ class ASTNode:
         for k, v in kwargs.items():
             setattr(self, k, v)
 
+    def get_predicates(self) -> list[PRED_KEY]:
+        predicates = []
+        if self.type == "PRED":
+            predicates.append((self.predicate, len(self.args)))
+        elif self.type == "BINOP":
+            predicates.extend(self.left.get_predicates())
+            predicates.extend(self.right.get_predicates())
+        elif self.type == "NOT":
+            predicates.extend(self.arg.get_predicates())
+        elif self.type == "QUANTIFIED":
+            if isinstance(self.formula, ASTNode):
+                predicates.extend(self.formula.get_predicates())
+            else:
+                pass
+        return predicates
+
+    def get_constants(self) -> set[str]:
+        constants = set()
+        if self.type == "CONST":
+            constants.add(self.name)
+        elif self.type == "BINOP":
+            constants.update(self.left.get_constants())
+            constants.update(self.right.get_constants())
+        elif self.type == "NOT":
+            constants.update(self.arg.get_constants())
+        elif self.type == "PRED":
+            for arg in self.args:
+                constants.update(arg.get_constants())
+        elif self.type == "QUANTIFIED":
+            constants.update(self.formula.get_constants())
+        return constants
+
+    def __str__(self):
+        return self._to_str()
+
+    def __repr__(self):
+        return self._to_str()
+
+    def _to_str(self):
+        lines = self._tree_lines()
+        return "\n".join(lines)
+
     def _tree_lines(self, prefix="", is_last=True):
         name = self.type
         if self.type == "BINOP":
@@ -32,21 +76,15 @@ class ASTNode:
         elif self.type == "NOT":
             name += ""
         elif self.type == "PRED":
-            args_str_list = []
-            for a in self.args:
-                if isinstance(a, ASTNode) and a.type in ("VAR", "CONST"):
-                    args_str_list.append(f"{a.name} ({a.type})")
-                elif isinstance(a, ASTNode):
-                    args_str_list.append(a.name if hasattr(a, "name") else str(a))
-                else:
-                    args_str_list.append(str(a))
-            args_str = ", ".join(args_str_list)
-            name += f" ({self.predicate}) [{args_str}]"
+            name += f" ({self.predicate})"
         elif self.type in ("VAR", "CONST"):
-            name += f" {self.name}"
+            name += f" ({self.name})"
         elif self.type == "QUANTIFIED":
+            vars_list = self.variables
+            if not isinstance(vars_list, list):
+                vars_list = [vars_list]
             vars_str_list = []
-            for v in self.variables:
+            for v in vars_list:
                 if isinstance(v, ASTNode) and v.type == "VAR":
                     vars_str_list.append(f"{v.name} (VAR)")
                 else:
@@ -57,8 +95,17 @@ class ASTNode:
         lines = [prefix + ("└── " if is_last else "├── ") + name]
 
         children = []
-        if self.type == "QUANTIFIED":
-            children.append(self.formula)
+        if self.type == "QUANTIFIED" and hasattr(self, "formula"):
+            f = self.formula
+            if isinstance(f, tuple):
+                q, vars_ = f
+                f = ASTNode(
+                    "QUANTIFIED",
+                    quantifier=q,
+                    variables=vars_,
+                    formula=None
+                )
+            children.append(f)
         elif self.type == "BINOP":
             children.extend([self.left, self.right])
         elif self.type == "NOT":
@@ -69,32 +116,24 @@ class ASTNode:
         for i, c in enumerate(children):
             if c is not None:
                 last = i == len(children) - 1
+                new_prefix = prefix + ("    " if is_last else "│   ")
                 if isinstance(c, ASTNode):
-                    new_prefix = prefix + ("    " if is_last else "│   ")
                     lines.extend(c._tree_lines(new_prefix, last))
+                elif isinstance(c, Tree):
+                    transformed = self.transform(c)
+                    if isinstance(transformed, ASTNode):
+                        lines.extend(transformed._tree_lines(new_prefix, last))
                 elif isinstance(c, list):
                     for j, subc in enumerate(c):
                         sub_last = j == len(c) - 1
                         if isinstance(subc, ASTNode):
-                            new_prefix = prefix + ("    " if is_last else "│   ")
                             lines.extend(subc._tree_lines(new_prefix, sub_last))
                         else:
-                            new_prefix = prefix + ("    " if is_last else "│   ")
                             lines.append(new_prefix + ("└── " if sub_last else "├── ") + str(subc))
                 else:
-                    new_prefix = prefix + ("    " if is_last else "│   ")
                     lines.append(new_prefix + ("└── " if last else "├── ") + str(c))
-
         return lines
 
-    def to_str(self):
-        return "\n".join(self._tree_lines())
-
-    def __str__(self):
-        return self.to_str()
-
-    def __repr__(self):
-        return self.to_str()
 
 class FolTransformer(Transformer):
     def formula(self, items):
@@ -142,11 +181,18 @@ class FolTransformer(Transformer):
         args = [a for a in args if not (isinstance(a, Token) and a.type in {"LPAR", "RPAR", "COMMA"})]
         return ASTNode("PRED", predicate=predicate, args=args)
 
+    def neg_pred(self, items):
+        predicate_node = self.transform(items[0]) if isinstance(items[0], Tree) else items[0]
+        return ASTNode("NOT", arg=predicate_node)
+
     def binop(self, items):
-        left = self.transform(items[0]) if isinstance(items[0], Tree) else items[0]
-        right = self.transform(items[2]) if isinstance(items[2], Tree) else items[2]
-        op = str(items[1])
+        left = items[0] if isinstance(items[0], ASTNode) else self.transform(items[0])
+        right = items[2] if isinstance(items[2], ASTNode) else self.transform(items[2])
+        op = str(items[1]) if isinstance(items[1], Token) else str(items[1].children[0])
         return ASTNode("BINOP", op=op, left=left, right=right)
+
+    def binop_sentence(self, items):
+        return self.binop(items)
 
     def neg(self, items):
         arg = self.transform(items[0]) if isinstance(items[0], Tree) else items[0]
@@ -183,6 +229,7 @@ class FolTransformer(Transformer):
                 result.append(i)
         return result
 
+
 class FreeVariableChecker:
     def __init__(self):
         self.bound_stack: list[set[str]] = []
@@ -192,7 +239,10 @@ class FreeVariableChecker:
         if isinstance(node, ASTNode):
             t = node.type
             if t == "QUANTIFIED":
-                self.bound_stack.append(set(v.name if isinstance(v, ASTNode) else str(v) for v in node.variables))
+                vars_list = node.variables
+                if not isinstance(vars_list, list):
+                    vars_list = [vars_list]
+                self.bound_stack.append(set(v.name if isinstance(v, ASTNode) else str(v) for v in vars_list))
                 self.visit(node.formula)
                 self.bound_stack.pop()
             elif t == "VAR":
@@ -214,35 +264,43 @@ class FreeVariableChecker:
                 self.visit(item)
 
 
-def is_valid_fol(formula: str) -> bool:
-    if not isinstance(formula, str):
-        return False
-    try:
-        parser.parse(formula)
-        return True
-    except LarkError:
-        return False
-
-
-def is_closed_fol(formula: str) -> bool:
-    try:
-        tree = parser.parse(formula)
-    except LarkError:
-        return False
+def is_closed_fol(formula: str or Tree) -> bool:
+    if isinstance(formula, str):
+        try:
+            tree = parser.parse(formula)
+        except LarkError:
+            return False
+    else:
+        tree = formula
     transformed = FolTransformer().transform(tree)
     checker = FreeVariableChecker()
     checker.visit(transformed)
     return len(checker.free_vars) == 0
 
 
-def is_valid_fol_closed(formula: str) -> bool:
-    return is_valid_fol(formula) and is_closed_fol(formula)
+def is_valid_fol(formula: str) -> bool:
+    if not isinstance(formula, str):
+        return False
+    try:
+        tree = parser.parse(formula)
+        return True and is_closed_fol(tree)
+    except LarkError:
+        return False
 
 
 def parse_fol(formula: str):
     tree = parser.parse(formula)
     transformer = FolTransformer()
     return transformer.transform(tree)
+
+
+def parse_or_false(formula: str):
+    try:
+        tree = parser.parse(formula)
+        transformer = FolTransformer()
+        return transformer.transform(tree)
+    except LarkError:
+        return False
 
 
 def tokenize(formula: str) -> list[str]:
@@ -292,7 +350,7 @@ def predicate_similarity_score(a: list[str], b: list[str]) -> float:
     matches = 0
     used = set()
     for pa in a:
-        best = 999
+        best = MAX_SIMILARITY_SCORE
         best_b = None
         for pb in b:
             if pb in used:
@@ -338,13 +396,14 @@ if __name__ == "__main__":
     f2 = "∀z (HealthyLifestyle(z) ↔ BalancedDiet(z) ∧ AdequateSleep(z) ∧ RegularExercise(z))"
     print("Compare FOL:", compare_fol(f1, f2))
 
-    f3 = "∀x (Dish(x) ∧ LiquidFood(x) ∧ UsuallyMadeByBoiling(x, vegetables, meat, fish, water, stock) → Soup(x))"
-    print("Parse FOL:\n", parse_fol(f3))
+    #f3 = "∀x (Dish(x) ∧ LiquidFood(x) ∧ UsuallyMadeByBoiling(x, vegetables, meat, fish, water, stock) → Soup(x))"
+    #print("Parse FOL:\n", parse_fol(f3))
+
+    f4 = "∀x ∃y (Person(x) → (Loves(x, y) ∧ Person(y)))"
+    print("Parse FOL:\n", parse_fol(f4))
 
     f_ok = "∀x (Dish(x) → Food(x))"
     f_bad = "∀x (Dish(x) → Food(y))"
 
     print("syntactic ok:", is_valid_fol(f_ok))
-    print("closed ok:", is_valid_fol_closed(f_ok))
     print("syntactic bad:", is_valid_fol(f_bad))
-    print("closed bad:", is_valid_fol_closed(f_bad))
