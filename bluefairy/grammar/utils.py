@@ -20,14 +20,13 @@ parser = Lark.open(
     propagate_positions=True,
     maybe_placeholders=False
 )
-
 class ASTNode:
     def __init__(self, type_, **kwargs):
         self.type = type_
         for k, v in kwargs.items():
             setattr(self, k, v)
 
-    def get_predicates(self) -> list[PRED_KEY]:
+    def get_predicates(self):
         predicates = []
         if self.type == "PRED":
             predicates.append((self.predicate, len(self.args)))
@@ -36,14 +35,11 @@ class ASTNode:
             predicates.extend(self.right.get_predicates())
         elif self.type == "NOT":
             predicates.extend(self.arg.get_predicates())
-        elif self.type == "QUANTIFIED":
-            if isinstance(self.formula, ASTNode):
-                predicates.extend(self.formula.get_predicates())
-            else:
-                pass
+        elif self.type == "QUANTIFIED" and isinstance(self.formula, ASTNode):
+            predicates.extend(self.formula.get_predicates())
         return predicates
 
-    def get_constants(self) -> set[str]:
+    def get_constants(self):
         constants = set()
         if self.type == "CONST":
             constants.add(self.name)
@@ -60,52 +56,28 @@ class ASTNode:
         return constants
 
     def __str__(self):
-        return self._to_str()
+        return "\n".join(self._tree_lines())
 
     def __repr__(self):
-        return self._to_str()
-
-    def _to_str(self):
-        lines = self._tree_lines()
-        return "\n".join(lines)
+        return self.__str__()
 
     def _tree_lines(self, prefix="", is_last=True):
         name = self.type
         if self.type == "BINOP":
             name += f" ({self.op})"
-        elif self.type == "NOT":
-            name += ""
         elif self.type == "PRED":
             name += f" ({self.predicate})"
         elif self.type in ("VAR", "CONST"):
             name += f" ({self.name})"
         elif self.type == "QUANTIFIED":
-            vars_list = self.variables
-            if not isinstance(vars_list, list):
-                vars_list = [vars_list]
-            vars_str_list = []
-            for v in vars_list:
-                if isinstance(v, ASTNode) and v.type == "VAR":
-                    vars_str_list.append(f"{v.name} (VAR)")
-                else:
-                    vars_str_list.append(str(v))
-            vars_str = ", ".join(vars_str_list)
+            vars_str = ", ".join(f"{v.name} (VAR)" for v in self.variables)
             name += f" ({self.quantifier} {vars_str})"
 
         lines = [prefix + ("└── " if is_last else "├── ") + name]
 
         children = []
-        if self.type == "QUANTIFIED" and hasattr(self, "formula"):
-            f = self.formula
-            if isinstance(f, tuple):
-                q, vars_ = f
-                f = ASTNode(
-                    "QUANTIFIED",
-                    quantifier=q,
-                    variables=vars_,
-                    formula=None
-                )
-            children.append(f)
+        if self.type == "QUANTIFIED":
+            children.append(self.formula)
         elif self.type == "BINOP":
             children.extend([self.left, self.right])
         elif self.type == "NOT":
@@ -113,25 +85,12 @@ class ASTNode:
         elif self.type == "PRED":
             children.extend(self.args)
 
+        children = [c for c in children if isinstance(c, ASTNode)]
+
         for i, c in enumerate(children):
-            if c is not None:
-                last = i == len(children) - 1
-                new_prefix = prefix + ("    " if is_last else "│   ")
-                if isinstance(c, ASTNode):
-                    lines.extend(c._tree_lines(new_prefix, last))
-                elif isinstance(c, Tree):
-                    transformed = self.transform(c)
-                    if isinstance(transformed, ASTNode):
-                        lines.extend(transformed._tree_lines(new_prefix, last))
-                elif isinstance(c, list):
-                    for j, subc in enumerate(c):
-                        sub_last = j == len(c) - 1
-                        if isinstance(subc, ASTNode):
-                            lines.extend(subc._tree_lines(new_prefix, sub_last))
-                        else:
-                            lines.append(new_prefix + ("└── " if sub_last else "├── ") + str(subc))
-                else:
-                    lines.append(new_prefix + ("└── " if last else "├── ") + str(c))
+            new_prefix = prefix + ("    " if is_last else "│   ")
+            lines.extend(c._tree_lines(new_prefix, i == len(children) - 1))
+
         return lines
 
 
@@ -143,20 +102,21 @@ class FolTransformer(Transformer):
             i = items[0]
             if isinstance(i, Tree):
                 return self.transform(i)
-            elif isinstance(i, ASTNode):
-                return i
-            elif isinstance(i, Token):
-                return ASTNode("VAR", name=str(i))
-            else:
-                return i
+            return i
 
         if len(items) == 3:
-            left = self.transform(items[0]) if isinstance(items[0], Tree) else items[0]
-            op = str(items[1])
-            right = self.transform(items[2]) if isinstance(items[2], Tree) else items[2]
+            left = items[0] if isinstance(items[0], ASTNode) else self.transform(items[0])
+            right = items[2] if isinstance(items[2], ASTNode) else self.transform(items[2])
+
+            op_item = items[1]
+            if isinstance(op_item, Tree):
+                op = str(op_item.children[0])
+            else:
+                op = str(op_item)
+
             return ASTNode("BINOP", op=op, left=left, right=right)
 
-        return ASTNode("VAR", name=str(items[0]))
+        return items[0]
 
     def VAR(self, token):
         return ASTNode("VAR", name=str(token))
@@ -169,49 +129,52 @@ class FolTransformer(Transformer):
         args = []
         for item in items[1:]:
             if isinstance(item, Tree):
-                transformed = self.transform(item)
-                if isinstance(transformed, list):
-                    args.extend(transformed)
-                else:
-                    args.append(transformed)
-            elif isinstance(item, list):
-                args.extend([self.transform(x) if isinstance(x, Tree) else x for x in item])
-            else:
+                item = self.transform(item)
+            if isinstance(item, list):
+                args.extend(item)
+            elif isinstance(item, ASTNode):
                 args.append(item)
-        args = [a for a in args if not (isinstance(a, Token) and a.type in {"LPAR", "RPAR", "COMMA"})]
         return ASTNode("PRED", predicate=predicate, args=args)
 
     def neg_pred(self, items):
-        predicate_node = self.transform(items[0]) if isinstance(items[0], Tree) else items[0]
-        return ASTNode("NOT", arg=predicate_node)
+        node = self.transform(items[0]) if isinstance(items[0], Tree) else items[0]
+        return ASTNode("NOT", arg=node)
 
     def binop(self, items):
         left = items[0] if isinstance(items[0], ASTNode) else self.transform(items[0])
         right = items[2] if isinstance(items[2], ASTNode) else self.transform(items[2])
-        op = str(items[1]) if isinstance(items[1], Token) else str(items[1].children[0])
+
+        op_item = items[1]
+        if isinstance(op_item, Tree):
+            op = str(op_item.children[0])
+        else:
+            op = str(op_item)
+
         return ASTNode("BINOP", op=op, left=left, right=right)
 
     def binop_sentence(self, items):
         return self.binop(items)
 
     def neg(self, items):
-        arg = self.transform(items[0]) if isinstance(items[0], Tree) else items[0]
-        return ASTNode("NOT", arg=arg)
+        node = items[0] if isinstance(items[0], ASTNode) else self.transform(items[0])
+        return ASTNode("NOT", arg=node)
 
     def multi_quant(self, items):
-        quantifier = str(items[0])
-        variables = []
-        for v in items[1:]:
-            if isinstance(v, Tree):
-                variables.append(self.transform(v))
-            else:
-                variables.append(v)
-        return quantifier, variables
+        return str(items[0]), items[1]
 
     def quantified_sentence(self, items):
-        quantifier, variables = items[0]
-        formula = self.transform(items[1]) if isinstance(items[1], Tree) else items[1]
-        return ASTNode("QUANTIFIED", quantifier=quantifier, variables=variables, formula=formula)
+        formula = items[-1]
+        if isinstance(formula, Tree):
+            formula = self.transform(formula)
+
+        for q, v in reversed(items[:-1]):
+            formula = ASTNode(
+                "QUANTIFIED",
+                quantifier=q,
+                variables=[v] if not isinstance(v, list) else v,
+                formula=formula
+            )
+        return formula
 
     def term(self, items):
         return self.transform(items[0]) if isinstance(items[0], Tree) else items[0]
@@ -220,11 +183,9 @@ class FolTransformer(Transformer):
         result = []
         for i in items:
             if isinstance(i, Tree):
-                transformed = self.transform(i)
-                if isinstance(transformed, list):
-                    result.extend(transformed)
-                else:
-                    result.append(transformed)
+                i = self.transform(i)
+            if isinstance(i, list):
+                result.extend(i)
             else:
                 result.append(i)
         return result
@@ -396,8 +357,8 @@ if __name__ == "__main__":
     f2 = "∀z (HealthyLifestyle(z) ↔ BalancedDiet(z) ∧ AdequateSleep(z) ∧ RegularExercise(z))"
     print("Compare FOL:", compare_fol(f1, f2))
 
-    #f3 = "∀x (Dish(x) ∧ LiquidFood(x) ∧ UsuallyMadeByBoiling(x, vegetables, meat, fish, water, stock) → Soup(x))"
-    #print("Parse FOL:\n", parse_fol(f3))
+    f3 = "∀x (Dish(x) ∧ LiquidFood(x) ∧ UsuallyMadeByBoiling(x, vegetables, meat, fish, water, stock) → Soup(x))"
+    print("Parse FOL:\n", parse_fol(f3))
 
     f4 = "∀x ∃y (Person(x) → (Loves(x, y) ∧ Person(y)))"
     print("Parse FOL:\n", parse_fol(f4))
