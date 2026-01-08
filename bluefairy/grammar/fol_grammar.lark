@@ -23,6 +23,7 @@ PRED: /[A-Z][A-Za-z0-9_]*/
 ?sentence: formula
          | quantifier+ formula       -> quantified_sentence
          | sentence bin_op sentence  -> binop_sentence
+         | LPAR sentence RPAR
 
 ?quantifier: QUANT VAR -> multi_quant
 

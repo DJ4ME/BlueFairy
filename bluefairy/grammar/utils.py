@@ -26,10 +26,15 @@ class ASTNode:
         for k, v in kwargs.items():
             setattr(self, k, v)
 
+    def get_args_num(self):
+        if self.args is not None and isinstance(self.args, list):
+            return len([x for x in self.args if x.type in {"VAR", "CONST", "PRED"}])
+        return 0
+
     def get_predicates(self):
         predicates = []
         if self.type == "PRED":
-            predicates.append((self.predicate, len(self.args)))
+            predicates.append((self.predicate, self.get_args_num()))
         elif self.type == "BINOP":
             predicates.extend(self.left.get_predicates())
             predicates.extend(self.right.get_predicates())
@@ -50,7 +55,10 @@ class ASTNode:
             constants.update(self.arg.get_constants())
         elif self.type == "PRED":
             for arg in self.args:
-                constants.update(arg.get_constants())
+                if isinstance(arg, ASTNode):
+                    constants.update(arg.get_constants())
+                else:
+                    pass
         elif self.type == "QUANTIFIED":
             constants.update(self.formula.get_constants())
         return constants
@@ -257,9 +265,7 @@ def parse_fol(formula: str):
 
 def parse_or_false(formula: str):
     try:
-        tree = parser.parse(formula)
-        transformer = FolTransformer()
-        return transformer.transform(tree)
+        return parse_fol(formula)
     except LarkError:
         return False
 
