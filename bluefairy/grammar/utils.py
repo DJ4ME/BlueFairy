@@ -31,7 +31,7 @@ class ASTNode:
             return len([x for x in self.args if x.type in {"VAR", "CONST", "PRED"}])
         return 0
 
-    def get_predicates(self):
+    def get_predicates(self) -> list[PRED_KEY]:
         predicates = []
         if self.type == "PRED":
             predicates.append((self.predicate, self.get_args_num()))
@@ -39,9 +39,30 @@ class ASTNode:
             predicates.extend(self.left.get_predicates())
             predicates.extend(self.right.get_predicates())
         elif self.type == "NOT":
-            predicates.extend(self.arg.get_predicates())
+            pass
         elif self.type == "QUANTIFIED" and isinstance(self.formula, ASTNode):
             predicates.extend(self.formula.get_predicates())
+        return predicates
+
+    def get_full_predicates(self) -> list[PRED_KEY, list[str]]:
+        predicates = []
+        if self.type == "PRED":
+            arg_names = []
+            for arg in self.args:
+                if arg.type not in {"VAR", "CONST", "PRED"}:
+                    continue
+                if isinstance(arg, ASTNode):
+                    arg_names.append(arg.name)
+                else:
+                    arg_names.append(str(arg))
+            predicates.append(((self.predicate, self.get_args_num()), arg_names))
+        elif self.type == "BINOP":
+            predicates.extend(self.left.get_full_predicates())
+            predicates.extend(self.right.get_full_predicates())
+        elif self.type == "NOT":
+            pass
+        elif self.type == "QUANTIFIED" and isinstance(self.formula, ASTNode):
+            predicates.extend(self.formula.get_full_predicates())
         return predicates
 
     def get_constants(self):
@@ -52,7 +73,7 @@ class ASTNode:
             constants.update(self.left.get_constants())
             constants.update(self.right.get_constants())
         elif self.type == "NOT":
-            constants.update(self.arg.get_constants())
+            pass
         elif self.type == "PRED":
             for arg in self.args:
                 if isinstance(arg, ASTNode):
