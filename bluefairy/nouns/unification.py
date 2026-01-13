@@ -1,6 +1,8 @@
-from collections import defaultdict
 import pandas as pd
+from collections import defaultdict
+from sentence_transformers import SentenceTransformer
 from bluefairy.grammar.utils import parse_or_false, PRED_KEY
+from bluefairy.nouns.embedding import build_embedding_space, build_predicate_similarity_matrix
 
 
 def collect_predicates(list_of_fol_formulas: list[str]) -> dict[PRED_KEY, int]:
@@ -86,27 +88,21 @@ def create_predicate_terms_matrices(list_of_fol_formulas: list[str]) -> list[pd.
     return df_list
 
 
-def generate_embedding_sentences(df_list: list[pd.DataFrame]) -> list[str]:
+def generate_embedding_sentences(df_list: list[pd.DataFrame]) -> dict[PRED_KEY,str]:
     """
     Generate canonical sentences for embeddings from a list of predicate-term DataFrames.
     Each DataFrame corresponds to one argument position (position index = df_list index).
     Each row = predicate (name, arity), each column = term, values = 1/0.
 
-    Format:
-    "Predicate [name] relates something like [args pos1] to something like [args pos2] ...
-     and to something like [args posN]"
-
-    If a position has no observed constants, replace with "a logic variable".
-
-    Returns:
-        List of strings, one per predicate.
+    :param df_list: the list of DataFrames representing predicate terms matrices.
+    :return: a list of sentences describing the predicates and their related terms.
     """
     if not df_list:
         return []
 
     predicates = df_list[0].index.tolist()
 
-    sentences = []
+    sentences = {}
 
     for pred_key in predicates:
         pred_name, arity = pred_key
@@ -131,7 +127,7 @@ def generate_embedding_sentences(df_list: list[pd.DataFrame]) -> list[str]:
             sentence += parts[0]
         else:
             sentence += " to ".join(parts) + "."
-        sentences.append(sentence)
+        sentences[pred_key] = sentence
 
     return sentences
 
@@ -149,6 +145,7 @@ if __name__ == "__main__":
         '∃x (Person(x) ∧ FavoriteFood(x, pizza))',
         '∀x ∀y (Person(x) ∧ Food(y) → Prefers(x, y) ↔ Likes(x, y))'
     ]
+
     preds = collect_predicates(test_formulas)
     constants = collect_constants(test_formulas)
     print("Collected predicates and their arities:")
@@ -159,12 +156,20 @@ if __name__ == "__main__":
     for const in constants.items():
         const_name, occurrence = const
         print(f"Constant: {const_name}, Occurrences: {occurrence}")
+
     matrices = create_predicate_terms_matrices(test_formulas)
     for i, matrix in enumerate(matrices):
         print(f"\nPredicate-Terms Matrix for position {i}:")
         print(matrix)
+
     sentences = generate_embedding_sentences(matrices)
     print("\nGenerated embedding sentences:")
-    for sentence in sentences:
+    for key, sentence in sentences.items():
         print(sentence)
+
+    model = SentenceTransformer("all-mpnet-base-v2")
+    embedding_space = build_embedding_space(list(sentences.values()), lambda x: model.encode(x, normalize_embeddings=False))
+    semantic_matrix_score = build_predicate_similarity_matrix(embedding_space, sentences)
+    print("\nPredicate Similarity Matrix:")
+    print(semantic_matrix_score)
 
