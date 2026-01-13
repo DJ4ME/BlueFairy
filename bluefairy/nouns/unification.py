@@ -1,7 +1,7 @@
 import pandas as pd
 from collections import defaultdict
 from sentence_transformers import SentenceTransformer
-from bluefairy.grammar.utils import parse_or_false, PRED_KEY
+from bluefairy.grammar.utils import parse_or_false, PRED_KEY, predicate_similarity_score
 from bluefairy.nouns.embedding import build_embedding_space, build_predicate_similarity_matrix, \
     generate_predicate_embedding_sentences, generate_constant_embedding_sentences
 from bluefairy.nouns.lexical_metrics import build_predicate_lexical_similarity_matrix, \
@@ -58,12 +58,14 @@ def create_predicate_terms_matrices(list_of_fol_formulas: list[str]) -> list[pd.
 
     pred_pos_terms: dict[PRED_KEY, dict[int, set]] = defaultdict(lambda: defaultdict(set))
 
+    predicates = set()
     for fol in list_of_fol_formulas:
         parsed = parse_or_false(fol)
         if not parsed:
             continue
         for (pred_name, arity), terms in parsed.get_full_predicates():
             pred_key: PRED_KEY = (pred_name, arity)
+            predicates.add(pred_key)
             for pos, term in enumerate(terms):
                 if is_variable(term):
                     continue
@@ -72,7 +74,7 @@ def create_predicate_terms_matrices(list_of_fol_formulas: list[str]) -> list[pd.
     if not pred_pos_terms:
         return []
 
-    predicates = sorted(pred_pos_terms.keys())
+    predicates = sorted(list(predicates))
     all_terms = sorted({t for pos_dict in pred_pos_terms.values() for ts in pos_dict.values() for t in ts})
     max_arity = max(arity for _, arity in predicates)
 
@@ -89,6 +91,18 @@ def create_predicate_terms_matrices(list_of_fol_formulas: list[str]) -> list[pd.
         df_list.append(df)
 
     return df_list
+
+
+def compute_similarity_scores(semantic_scores: pd.DataFrame, lexical_scores: pd.DataFrame, alpha: float = 0.1) -> pd.DataFrame:
+    """
+    Computes combined similarity scores from semantic and lexical similarity scores.
+    :param semantic_scores: the semantic similarity scores DataFrame
+    :param lexical_scores: the lexical similarity scores DataFrame
+    :param alpha: the weight for lexical similarity
+    :return: a DataFrame with combined similarity scores
+    """
+    combined_scores = (1 - alpha) * semantic_scores + alpha * lexical_scores
+    return combined_scores
 
 
 if __name__ == "__main__":
@@ -117,38 +131,27 @@ if __name__ == "__main__":
         print(f"Constant: {const_name}, Occurrences: {occurrence}")
 
     matrices = create_predicate_terms_matrices(test_formulas)
-    for i, matrix in enumerate(matrices):
-        print(f"\nPredicate-Terms Matrix for position {i}:")
-        print(matrix)
-
     predicate_sentences = generate_predicate_embedding_sentences(matrices)
-    print("\nGenerated embedding sentences for predicates:")
-    for key, sentence in predicate_sentences.items():
-        print(sentence)
-
     constant_sentences = generate_constant_embedding_sentences(matrices)
-    print("\nGenerated embedding sentences for constants:")
-    for key, sentence in constant_sentences.items():
-        print(sentence)
 
     model = SentenceTransformer("all-mpnet-base-v2")
-    embedding_space = build_embedding_space(list(predicate_sentences.values()), lambda x: model.encode(x, normalize_embeddings=False))
-    semantic_predicate_matrix_score = build_predicate_similarity_matrix(embedding_space, predicate_sentences)
-    print("\nPredicate Semantic Similarity Matrix:")
-    print(semantic_predicate_matrix_score)
+    embedding_predicate_space = build_embedding_space(list(predicate_sentences.values()), lambda x: model.encode(x, normalize_embeddings=False))
+    semantic_predicate_matrix_score = build_predicate_similarity_matrix(embedding_predicate_space, predicate_sentences)
 
-    embedding_space = build_embedding_space(list(constant_sentences.values()), lambda x: model.encode(x, normalize_embeddings=False))
-    semantic_constant_matrix_score = build_predicate_similarity_matrix(embedding_space, constant_sentences)
-    print("\nConstant Semantic Similarity Matrix:")
-    print(semantic_constant_matrix_score)
+    embedding_constant_space = build_embedding_space(list(constant_sentences.values()), lambda x: model.encode(x, normalize_embeddings=False))
+    semantic_constant_matrix_score = build_predicate_similarity_matrix(embedding_constant_space, constant_sentences)
 
     lexical_predicate_matrix_score = build_predicate_lexical_similarity_matrix(list(preds.keys()))
-    print("\nPredicate Lexical Similarity Matrix:")
-    print(lexical_predicate_matrix_score)
-
     lexical_constant_matrix_score = build_constant_lexical_similarity_matrix([const for const, occurrence in constants.items()])
-    print("\nConstant Lexical Similarity Matrix:")
-    print(lexical_constant_matrix_score)
+
+    predicate_similarity_score = compute_similarity_scores(semantic_predicate_matrix_score, lexical_predicate_matrix_score, alpha=0.1)
+    constant_similarity_score = compute_similarity_scores(semantic_constant_matrix_score, lexical_constant_matrix_score, alpha=0.1)
+
+    print("\nPredicate Similarity Scores:")
+    print(predicate_similarity_score)
+
+    print("\nConstant Similarity Scores:")
+    print(constant_similarity_score)
 
 
 
