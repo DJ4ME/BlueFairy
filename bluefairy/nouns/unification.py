@@ -86,6 +86,56 @@ def create_predicate_terms_matrices(list_of_fol_formulas: list[str]) -> list[pd.
     return df_list
 
 
+def generate_embedding_sentences(df_list: list[pd.DataFrame]) -> list[str]:
+    """
+    Generate canonical sentences for embeddings from a list of predicate-term DataFrames.
+    Each DataFrame corresponds to one argument position (position index = df_list index).
+    Each row = predicate (name, arity), each column = term, values = 1/0.
+
+    Format:
+    "Predicate [name] relates something like [args pos1] to something like [args pos2] ...
+     and to something like [args posN]"
+
+    If a position has no observed constants, replace with "a logic variable".
+
+    Returns:
+        List of strings, one per predicate.
+    """
+    if not df_list:
+        return []
+
+    predicates = df_list[0].index.tolist()
+
+    sentences = []
+
+    for pred_key in predicates:
+        pred_name, arity = pred_key
+        parts = []
+        for pos_idx in range(arity):
+            if pos_idx >= len(df_list):
+                parts.append("a logic variable")
+                continue
+
+            df = df_list[pos_idx]
+            # TODO: I suppose this is not the best way efficiency-wise.
+            # Consider using a multi-index DataFrame in the future.
+            row = df.iloc[df.index.get_loc(pred_key)]
+            args = [col for col, val in row.items() if val == 1]
+            if args:
+                parts.append("something like " + ", ".join([f"'{x}'" for x in args]))
+            else:
+                parts.append("a logic variable")
+
+        sentence = f"Predicate '{pred_name}' relates "
+        if len(parts) == 1:
+            sentence += parts[0]
+        else:
+            sentence += " to ".join(parts) + "."
+        sentences.append(sentence)
+
+    return sentences
+
+
 if __name__ == "__main__":
     test_formulas = [
         '∀x (Person(x) → Eats(x, apple))',
@@ -113,4 +163,8 @@ if __name__ == "__main__":
     for i, matrix in enumerate(matrices):
         print(f"\nPredicate-Terms Matrix for position {i}:")
         print(matrix)
+    sentences = generate_embedding_sentences(matrices)
+    print("\nGenerated embedding sentences:")
+    for sentence in sentences:
+        print(sentence)
 
