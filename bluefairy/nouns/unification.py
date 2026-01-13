@@ -2,7 +2,10 @@ import pandas as pd
 from collections import defaultdict
 from sentence_transformers import SentenceTransformer
 from bluefairy.grammar.utils import parse_or_false, PRED_KEY
-from bluefairy.nouns.embedding import build_embedding_space, build_predicate_similarity_matrix
+from bluefairy.nouns.embedding import build_embedding_space, build_predicate_similarity_matrix, \
+    generate_predicate_embedding_sentences, generate_constant_embedding_sentences
+from bluefairy.nouns.lexical_metrics import build_predicate_lexical_similarity_matrix, \
+    build_constant_lexical_similarity_matrix
 
 
 def collect_predicates(list_of_fol_formulas: list[str]) -> dict[PRED_KEY, int]:
@@ -88,50 +91,6 @@ def create_predicate_terms_matrices(list_of_fol_formulas: list[str]) -> list[pd.
     return df_list
 
 
-def generate_embedding_sentences(df_list: list[pd.DataFrame]) -> dict[PRED_KEY,str]:
-    """
-    Generate canonical sentences for embeddings from a list of predicate-term DataFrames.
-    Each DataFrame corresponds to one argument position (position index = df_list index).
-    Each row = predicate (name, arity), each column = term, values = 1/0.
-
-    :param df_list: the list of DataFrames representing predicate terms matrices.
-    :return: a list of sentences describing the predicates and their related terms.
-    """
-    if not df_list:
-        return []
-
-    predicates = df_list[0].index.tolist()
-
-    sentences = {}
-
-    for pred_key in predicates:
-        pred_name, arity = pred_key
-        parts = []
-        for pos_idx in range(arity):
-            if pos_idx >= len(df_list):
-                parts.append("a logic variable")
-                continue
-
-            df = df_list[pos_idx]
-            # TODO: I suppose this is not the best way efficiency-wise.
-            # Consider using a multi-index DataFrame in the future.
-            row = df.iloc[df.index.get_loc(pred_key)]
-            args = [col for col, val in row.items() if val == 1]
-            if args:
-                parts.append("something like " + ", ".join([f"'{x}'" for x in args]))
-            else:
-                parts.append("a logic variable")
-
-        sentence = f"Predicate '{pred_name}' relates "
-        if len(parts) == 1:
-            sentence += parts[0]
-        else:
-            sentence += " to ".join(parts) + "."
-        sentences[pred_key] = sentence
-
-    return sentences
-
-
 if __name__ == "__main__":
     test_formulas = [
         '∀x (Person(x) → Eats(x, apple))',
@@ -162,14 +121,34 @@ if __name__ == "__main__":
         print(f"\nPredicate-Terms Matrix for position {i}:")
         print(matrix)
 
-    sentences = generate_embedding_sentences(matrices)
-    print("\nGenerated embedding sentences:")
-    for key, sentence in sentences.items():
+    predicate_sentences = generate_predicate_embedding_sentences(matrices)
+    print("\nGenerated embedding sentences for predicates:")
+    for key, sentence in predicate_sentences.items():
+        print(sentence)
+
+    constant_sentences = generate_constant_embedding_sentences(matrices)
+    print("\nGenerated embedding sentences for constants:")
+    for key, sentence in constant_sentences.items():
         print(sentence)
 
     model = SentenceTransformer("all-mpnet-base-v2")
-    embedding_space = build_embedding_space(list(sentences.values()), lambda x: model.encode(x, normalize_embeddings=False))
-    semantic_matrix_score = build_predicate_similarity_matrix(embedding_space, sentences)
-    print("\nPredicate Similarity Matrix:")
-    print(semantic_matrix_score)
+    embedding_space = build_embedding_space(list(predicate_sentences.values()), lambda x: model.encode(x, normalize_embeddings=False))
+    semantic_predicate_matrix_score = build_predicate_similarity_matrix(embedding_space, predicate_sentences)
+    print("\nPredicate Semantic Similarity Matrix:")
+    print(semantic_predicate_matrix_score)
+
+    embedding_space = build_embedding_space(list(constant_sentences.values()), lambda x: model.encode(x, normalize_embeddings=False))
+    semantic_constant_matrix_score = build_predicate_similarity_matrix(embedding_space, constant_sentences)
+    print("\nConstant Semantic Similarity Matrix:")
+    print(semantic_constant_matrix_score)
+
+    lexical_predicate_matrix_score = build_predicate_lexical_similarity_matrix(list(preds.keys()))
+    print("\nPredicate Lexical Similarity Matrix:")
+    print(lexical_predicate_matrix_score)
+
+    lexical_constant_matrix_score = build_constant_lexical_similarity_matrix([const for const, occurrence in constants.items()])
+    print("\nConstant Lexical Similarity Matrix:")
+    print(lexical_constant_matrix_score)
+
+
 

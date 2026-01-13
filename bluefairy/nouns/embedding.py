@@ -1,8 +1,97 @@
-from typing import Callable
 import numpy as np
 import pandas as pd
-
+from typing import Callable
 from bluefairy.grammar.utils import PRED_KEY
+
+
+def generate_predicate_embedding_sentences(
+        df_list: list[pd.DataFrame]
+) -> dict[PRED_KEY,str]:
+    """
+    Generate canonical sentences for embeddings from a list of predicate-term DataFrames.
+    Each DataFrame corresponds to one argument position (position index = df_list index).
+    Each row = predicate (name, arity), each column = term, values = 1/0.
+
+    :param df_list: the list of DataFrames representing predicate terms matrices.
+    :return: a list of sentences describing the predicates and their related terms.
+    """
+    if not df_list:
+        return []
+
+    predicates = df_list[0].index.tolist()
+
+    sentences = {}
+
+    for pred_key in predicates:
+        pred_name, arity = pred_key
+        parts = []
+        for pos_idx in range(arity):
+            if pos_idx >= len(df_list):
+                parts.append("a logic variable")
+                continue
+
+            df = df_list[pos_idx]
+            # TODO: I suppose this is not the best way efficiency-wise.
+            # Consider using a multi-index DataFrame in the future.
+            row = df.iloc[df.index.get_loc(pred_key)]
+            args = [col for col, val in row.items() if val == 1]
+            if args:
+                parts.append("something like " + ", ".join([f"'{x}'" for x in args]))
+            else:
+                parts.append("a logic variable")
+
+        sentence = f"Predicate '{pred_name}' relates "
+        if len(parts) == 1:
+            sentence += parts[0]
+        else:
+            sentence += " to ".join(parts) + "."
+        sentences[pred_key] = sentence
+
+    return sentences
+
+
+def generate_constant_embedding_sentences(
+    df_list: list[pd.DataFrame],
+) -> dict[str, str]:
+    constant_to_sentence: dict[str, str] = {}
+
+    constants = df_list[0].columns
+
+    for constant in constants:
+        parts = []
+
+        for pos, df in enumerate(df_list, start=1):
+            used_preds = df.index[df[constant] > 0]
+
+            if len(used_preds) == 0:
+                continue
+
+            pred_names = sorted({pred_name for pred_name, _ in used_preds})
+
+            if len(pred_names) == 1:
+                part = (
+                    f"as argument {pos} of predicate '{pred_names[0]}'"
+                )
+            else:
+                preds = ", ".join(f"'{p}'" for p in pred_names)
+                part = (
+                    f"as argument {pos} of predicates {preds}"
+                )
+
+            parts.append(part)
+
+        if not parts:
+            continue
+
+        sentence = (
+            f"Constant '{constant}' is used "
+            + ", ".join(parts)
+            + "."
+        )
+
+        constant_to_sentence[constant] = sentence
+
+    return constant_to_sentence
 
 
 def build_embedding_space(
