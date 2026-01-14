@@ -4,6 +4,7 @@ from sentence_transformers import SentenceTransformer
 from bluefairy.grammar.utils import parse_or_false, PRED_KEY, predicate_similarity_score
 from bluefairy.nouns.embedding import build_embedding_space, build_predicate_similarity_matrix, \
     generate_predicate_embedding_sentences, generate_constant_embedding_sentences
+from bluefairy.nouns.graph import build_unification_map
 from bluefairy.nouns.lexical_metrics import build_predicate_lexical_similarity_matrix, \
     build_constant_lexical_similarity_matrix
 
@@ -44,6 +45,25 @@ def collect_constants(list_of_fol_formulas: list[str]) -> dict[str, int]:
             elements[element] += 1
     return elements
 
+
+def create_predicate_arity_matrix(predicates: list[PRED_KEY]) -> pd.DataFrame:
+    """
+    Creates a predicate arity matrix predicate x predicate from the list of predicates and their arities.
+    A cell is 1 if the predicates have the same arity, 0 otherwise.
+    :param predicates: the list of predicates with their arities
+    :return: a DataFrame representing the predicate arity matrix
+    """
+    data = {pred_key: [] for pred_key in predicates}
+    index = []
+    for pred_key_1 in predicates:
+        index.append(pred_key_1)
+        arity_1 = pred_key_1[1]
+        for pred_key_2 in predicates:
+            arity_2 = pred_key_2[1]
+            data[pred_key_2].append(1 if arity_1 == arity_2 else 0)
+    df = pd.DataFrame(data, index=index)
+    df.columns = df.index
+    return df
 
 def create_predicate_terms_matrices(list_of_fol_formulas: list[str]) -> list[pd.DataFrame]:
     """
@@ -134,6 +154,8 @@ if __name__ == "__main__":
     predicate_sentences = generate_predicate_embedding_sentences(matrices)
     constant_sentences = generate_constant_embedding_sentences(matrices)
 
+    arity_predicate_matrix = create_predicate_arity_matrix(list(preds.keys()))
+
     model = SentenceTransformer("all-mpnet-base-v2")
     embedding_predicate_space = build_embedding_space(list(predicate_sentences.values()), lambda x: model.encode(x, normalize_embeddings=False))
     semantic_predicate_matrix_score = build_predicate_similarity_matrix(embedding_predicate_space, predicate_sentences)
@@ -144,7 +166,7 @@ if __name__ == "__main__":
     lexical_predicate_matrix_score = build_predicate_lexical_similarity_matrix(list(preds.keys()))
     lexical_constant_matrix_score = build_constant_lexical_similarity_matrix([const for const, occurrence in constants.items()])
 
-    predicate_similarity_score = compute_similarity_scores(semantic_predicate_matrix_score, lexical_predicate_matrix_score, alpha=0.1)
+    predicate_similarity_score = arity_predicate_matrix * compute_similarity_scores(semantic_predicate_matrix_score, lexical_predicate_matrix_score, alpha=0.1)
     constant_similarity_score = compute_similarity_scores(semantic_constant_matrix_score, lexical_constant_matrix_score, alpha=0.1)
 
     print("\nPredicate Similarity Scores:")
@@ -152,6 +174,16 @@ if __name__ == "__main__":
 
     print("\nConstant Similarity Scores:")
     print(constant_similarity_score)
+
+    unified_predicates = build_unification_map(predicate_similarity_score, preds, threshold=0.8)
+    # Print all predicates that have the same representative
+    print("\nUnified Predicates:")
+    rep_to_members: dict[PRED_KEY, list[PRED_KEY]] = defaultdict(list)
+    for pred, rep in unified_predicates.items():
+        rep_to_members[rep].append(pred)
+    for rep, members in rep_to_members.items():
+        if len(members) > 1:
+            print(f"Representative: {rep}, Members: {members}")
 
 
 
