@@ -3,7 +3,7 @@ from collections import defaultdict
 from sentence_transformers import SentenceTransformer
 from bluefairy.grammar.utils import parse_or_false, PRED_KEY, predicate_similarity_score
 from bluefairy.nouns.embedding import build_embedding_space, build_predicate_similarity_matrix, \
-    generate_predicate_embedding_sentences, generate_constant_embedding_sentences
+    generate_predicate_embedding_sentences, generate_constant_embedding_sentences, build_constant_similarity_matrix
 from bluefairy.nouns.graph import build_predicate_unification_map, build_constant_unification_map
 from bluefairy.nouns.lexical_metrics import build_predicate_lexical_similarity_matrix, \
     build_constant_lexical_similarity_matrix
@@ -154,6 +154,56 @@ def rewrite_formulae(
         rewritten_formulas.append(parsed.to_readable_string())
     return rewritten_formulas
 
+def uniformize_formulae(
+        list_of_fol_formulae: list[str],
+        predicate_alpha: float = 0.1,
+        constant_alpha: float = 0.1,
+        predicate_threshold: float = 0.8,
+        constant_threshold: float = 0.8
+) -> list[str]:
+    """
+    Uniformizes a list of first-order logic formulas by unifying similar predicates and constants.
+    :param list_of_fol_formulae: the list of first-order logic formulas
+    :param predicate_alpha: the weight for lexical similarity in predicate unification
+    :param constant_alpha: the weight for lexical similarity in constant unification
+    :param predicate_threshold: the threshold for predicate unification
+    :param constant_threshold: the threshold for constant unification
+    :return: a list of uniformized first-order logic formulas
+    """
+    predicates = collect_predicates(list_of_fol_formulae)
+    constants = collect_constants(list_of_fol_formulae)
+
+    matrices = create_predicate_terms_matrices(list_of_fol_formulae)
+    predicate_sentences = generate_predicate_embedding_sentences(matrices)
+    constant_sentences = generate_constant_embedding_sentences(matrices)
+
+    arity_predicate_matrix = create_predicate_arity_matrix(list(predicates.keys()))
+
+    model = SentenceTransformer("all-mpnet-base-v2")
+    embedding_predicate_space = build_embedding_space(list(predicate_sentences.values()),
+                                                      lambda x: model.encode(x, normalize_embeddings=False))
+    semantic_predicate_matrix_score = build_predicate_similarity_matrix(embedding_predicate_space, predicate_sentences)
+
+    embedding_constant_space = build_embedding_space(list(constant_sentences.values()),
+                                                     lambda x: model.encode(x, normalize_embeddings=False))
+    semantic_constant_matrix_score = build_constant_similarity_matrix(embedding_constant_space, constant_sentences)
+
+    lexical_predicate_matrix_score = build_predicate_lexical_similarity_matrix(list(predicates.keys()))
+    lexical_constant_matrix_score = build_constant_lexical_similarity_matrix(
+        [const for const, occurrence in constants.items()])
+
+    predicate_similarity_score = arity_predicate_matrix * compute_similarity_scores(semantic_predicate_matrix_score,
+                                                                                    lexical_predicate_matrix_score,
+                                                                                    alpha=predicate_alpha)
+    constant_similarity_score = compute_similarity_scores(semantic_constant_matrix_score, lexical_constant_matrix_score,
+                                                          alpha=constant_alpha)
+
+    unified_predicates = build_predicate_unification_map(predicate_similarity_score, predicates, threshold=predicate_threshold)
+    unified_constants = build_constant_unification_map(constant_similarity_score, constants, threshold=constant_threshold)
+
+    return rewrite_formulae(list_of_fol_formulae, unified_predicates, unified_constants)
+
+
 
 if __name__ == "__main__":
     test_formulas = [
@@ -169,32 +219,7 @@ if __name__ == "__main__":
         '∀x ∀y (Person(x) ∧ Food(y) → Prefers(x, y) ↔ Likes(x, y))'
     ]
 
-    preds = collect_predicates(test_formulas)
-    constants = collect_constants(test_formulas)
-
-    matrices = create_predicate_terms_matrices(test_formulas)
-    predicate_sentences = generate_predicate_embedding_sentences(matrices)
-    constant_sentences = generate_constant_embedding_sentences(matrices)
-
-    arity_predicate_matrix = create_predicate_arity_matrix(list(preds.keys()))
-
-    model = SentenceTransformer("all-mpnet-base-v2")
-    embedding_predicate_space = build_embedding_space(list(predicate_sentences.values()), lambda x: model.encode(x, normalize_embeddings=False))
-    semantic_predicate_matrix_score = build_predicate_similarity_matrix(embedding_predicate_space, predicate_sentences)
-
-    embedding_constant_space = build_embedding_space(list(constant_sentences.values()), lambda x: model.encode(x, normalize_embeddings=False))
-    semantic_constant_matrix_score = build_predicate_similarity_matrix(embedding_constant_space, constant_sentences)
-
-    lexical_predicate_matrix_score = build_predicate_lexical_similarity_matrix(list(preds.keys()))
-    lexical_constant_matrix_score = build_constant_lexical_similarity_matrix([const for const, occurrence in constants.items()])
-
-    predicate_similarity_score = arity_predicate_matrix * compute_similarity_scores(semantic_predicate_matrix_score, lexical_predicate_matrix_score, alpha=0.1)
-    constant_similarity_score = compute_similarity_scores(semantic_constant_matrix_score, lexical_constant_matrix_score, alpha=0.1)
-
-    unified_predicates = build_predicate_unification_map(predicate_similarity_score, preds, threshold=0.8)
-    unified_constants = build_constant_unification_map(constant_similarity_score, constants, threshold=0.8)
-
-    rewritten_formulas = rewrite_formulae(test_formulas, unified_predicates, unified_constants)
+    rewritten_formulas = uniformize_formulae(test_formulas)
     for original, rewritten in zip(test_formulas, rewritten_formulas):
         print(f"O: {original}")
         print(f"R: {rewritten}\n")

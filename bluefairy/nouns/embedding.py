@@ -141,33 +141,47 @@ def embedding_similarity_by_sentence(
     return embedding_similarity(embedding_space, idx1, idx2)
 
 
-def build_predicate_similarity_matrix(
+def build_similarity_matrix(
     embedding_space: dict[str, object],
-    predicate_to_sentence: dict[PRED_KEY, str],
+    mapping: dict[str or PRED_KEY, str],
 ) -> pd.DataFrame:
     sentences: list[str] = embedding_space["sentences"]
     embeddings: np.ndarray = embedding_space["embeddings"]
 
     sentence_to_index = {s: i for i, s in enumerate(sentences)}
 
-    predicates = list(predicate_to_sentence.keys())
-    n = len(predicates)
+    elements = list(mapping.keys())
+    n = len(elements)
 
     sim_matrix = np.zeros((n, n), dtype=np.float32)
 
-    pred_indices = []
-    for pred in predicates:
-        sentence = predicate_to_sentence[pred]
+    indices = []
+    for element in elements:
+        sentence = mapping[element]
         if sentence not in sentence_to_index:
-            raise ValueError(f"Sentence for predicate {pred} not found in embedding space")
-        pred_indices.append(sentence_to_index[sentence])
+            raise ValueError(f"Sentence for {'constant' if isinstance(mapping.keys()[0], str) else 'predicate'} {element} not found in embedding space")
+        indices.append(sentence_to_index[sentence])
 
     for i in range(n):
-        ei = embeddings[pred_indices[i]]
+        ei = embeddings[indices[i]]
         for j in range(i, n):
-            score = float(np.dot(ei, embeddings[pred_indices[j]]))
+            score = float(np.dot(ei, embeddings[indices[j]]))
             sim_matrix[i, j] = score
             sim_matrix[j, i] = score
 
-    return pd.DataFrame(sim_matrix, index=predicates, columns=predicates)
+    return pd.DataFrame(sim_matrix, index=elements, columns=elements)
 
+
+
+def build_predicate_similarity_matrix(
+    embedding_space: dict[str, object],
+    predicate_to_sentence: dict[PRED_KEY, str],
+) -> pd.DataFrame:
+    return build_similarity_matrix(embedding_space, predicate_to_sentence)
+
+
+def build_constant_similarity_matrix(
+    embedding_space: dict[str, object],
+    constant_to_sentence: dict[str, str],
+) -> pd.DataFrame:
+    return build_similarity_matrix(embedding_space, constant_to_sentence)
