@@ -20,9 +20,12 @@ parser = Lark.open(
     propagate_positions=True,
     maybe_placeholders=False
 )
+
+
 class ASTNode:
     def __init__(self, type_, **kwargs):
         self.type = type_
+        self.readable_representation = ""
         for k, v in kwargs.items():
             setattr(self, k, v)
 
@@ -84,6 +87,61 @@ class ASTNode:
             constants.update(self.formula.get_constants())
         return constants
 
+    def rename_predicate(self, old_name: str, new_name: str, arity: int = -1):
+        if self.type == "PRED":
+            if self.predicate == old_name:
+                if arity == -1 or self.get_args_num() == arity:
+                    self.predicate = new_name
+        elif self.type == "BINOP":
+            self.left.rename_predicate(old_name, new_name, arity)
+            self.right.rename_predicate(old_name, new_name, arity)
+        elif self.type == "NOT":
+            pass
+        elif self.type == "QUANTIFIED":
+            self.formula.rename_predicate(old_name, new_name, arity)
+
+    def rename_constant(self, old_name: str, new_name: str):
+        if self.type == "CONST":
+            if self.name == old_name:
+                self.name = new_name
+        elif self.type == "BINOP":
+            self.left.rename_constant(old_name, new_name)
+            self.right.rename_constant(old_name, new_name)
+        elif self.type == "NOT":
+            pass
+        elif self.type == "PRED":
+            for arg in self.args:
+                if isinstance(arg, ASTNode):
+                    arg.rename_constant(old_name, new_name)
+        elif self.type == "QUANTIFIED":
+            self.formula.rename_constant(old_name, new_name)
+
+    def to_readable_string(self) -> str:
+        if self.type == "VAR":
+            return self.name
+        elif self.type == "CONST":
+            return self.name
+        elif self.type == "PRED":
+            args_str = "".join(arg.to_readable_string() if isinstance(arg, ASTNode) else str(arg) for arg in self.args)
+            # put spaces after commas if missing
+            args_str = args_str.replace(",", ", ")
+            return f"{self.predicate}({args_str})"
+        elif self.type == "NOT":
+            return f"¬{self.arg.to_readable_string()}"
+        elif self.type == "BINOP":
+            left_str = self.left.to_readable_string()
+            right_str = self.right.to_readable_string()
+            return f"{left_str} {self.op} {right_str}"
+        elif self.type == "QUANTIFIED":
+            vars_str = ", ".join(v.name if isinstance(v, ASTNode) else str(v) for v in self.variables)
+            formula_str = self.formula.to_readable_string()
+            another_quantifier = self.formula.type == "QUANTIFIED"
+            if another_quantifier:
+                return f"{self.quantifier}{vars_str} {formula_str}"
+            else:
+                return f"{self.quantifier}{vars_str} ({formula_str})"
+        return ""
+
     def __str__(self):
         return "\n".join(self._tree_lines())
 
@@ -124,6 +182,7 @@ class ASTNode:
 
 
 class FolTransformer(Transformer):
+
     def formula(self, items):
         items = [i for i in items if not (isinstance(i, Token) and i.type in {"LPAR", "RPAR"})]
 
@@ -165,9 +224,16 @@ class FolTransformer(Transformer):
                 args.append(item)
         return ASTNode("PRED", predicate=predicate, args=args)
 
+    def neg(self, items):
+        args = items[1:]
+        predicate = self.pred(args)
+        return ASTNode("NOT", arg=predicate)
+
     def neg_pred(self, items):
-        node = self.transform(items[0]) if isinstance(items[0], Tree) else items[0]
-        return ASTNode("NOT", arg=node)
+        # 0 is the neg symbol, 1 is the predicate, additional items can be parentheses and arguments of the predicate
+        args = items[1:]
+        predicate = self.pred(args)
+        return ASTNode("NOT", arg=predicate)
 
     def binop(self, items):
         left = items[0] if isinstance(items[0], ASTNode) else self.transform(items[0])
@@ -183,10 +249,6 @@ class FolTransformer(Transformer):
 
     def binop_sentence(self, items):
         return self.binop(items)
-
-    def neg(self, items):
-        node = items[0] if isinstance(items[0], ASTNode) else self.transform(items[0])
-        return ASTNode("NOT", arg=node)
 
     def multi_quant(self, items):
         return str(items[0]), items[1]
@@ -389,6 +451,10 @@ if __name__ == "__main__":
 
     f4 = "∀x ∃y (Person(x) → (Loves(x, y) ∧ Person(y)))"
     print("Parse FOL:\n", parse_fol(f4))
+
+    # negation test
+    f5 = "∀x (Mammal(x) → ¬LaysEggs(x))"
+    print("Parse FOL:\n", parse_fol(f5))
 
     f_ok = "∀x (Dish(x) → Food(x))"
     f_bad = "∀x (Dish(x) → Food(y))"

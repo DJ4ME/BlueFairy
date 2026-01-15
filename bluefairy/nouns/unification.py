@@ -4,7 +4,7 @@ from sentence_transformers import SentenceTransformer
 from bluefairy.grammar.utils import parse_or_false, PRED_KEY, predicate_similarity_score
 from bluefairy.nouns.embedding import build_embedding_space, build_predicate_similarity_matrix, \
     generate_predicate_embedding_sentences, generate_constant_embedding_sentences
-from bluefairy.nouns.graph import build_unification_map
+from bluefairy.nouns.graph import build_predicate_unification_map, build_constant_unification_map
 from bluefairy.nouns.lexical_metrics import build_predicate_lexical_similarity_matrix, \
     build_constant_lexical_similarity_matrix
 
@@ -125,6 +125,36 @@ def compute_similarity_scores(semantic_scores: pd.DataFrame, lexical_scores: pd.
     return combined_scores
 
 
+def rewrite_formulae(
+        list_of_fol_formulas: list[str],
+        predicate_unification_map: dict[PRED_KEY, PRED_KEY],
+        constant_unification_map: dict[str, str]
+) -> list[str]:
+    """
+    Rewrites a list of first-order logic formulas based on a unification map of predicates.
+    :param list_of_fol_formulas: the list of first-order logic formulas
+    :param predicate_unification_map: the unification map of predicates
+    :param constant_unification_map: the unification map of constants
+    """
+    rewritten_formulas = []
+    for fol in list_of_fol_formulas:
+        parsed = parse_or_false(fol)
+        if not parsed:
+            rewritten_formulas.append(fol)
+            continue
+        for (pred_name, arity), terms in parsed.get_full_predicates():
+            key = (pred_name, arity)
+            if key in predicate_unification_map:
+                new_pred_name = predicate_unification_map[key][0]
+                parsed.rename_predicate(pred_name, new_pred_name, arity)
+        for const in parsed.get_constants():
+            if const in constant_unification_map:
+                new_const = constant_unification_map[const]
+                parsed.rename_constant(const, new_const)
+        rewritten_formulas.append(parsed.to_readable_string())
+    return rewritten_formulas
+
+
 if __name__ == "__main__":
     test_formulas = [
         '∀x (Person(x) → Eats(x, apple))',
@@ -141,14 +171,6 @@ if __name__ == "__main__":
 
     preds = collect_predicates(test_formulas)
     constants = collect_constants(test_formulas)
-    print("Collected predicates and their arities:")
-    for pred in preds.items():
-        (pred_name, arity), occurrence = pred
-        print(f"Predicate: {pred_name}, Arity: {arity}, Occurrences: {occurrence}")
-    print("\nCollected constants:")
-    for const in constants.items():
-        const_name, occurrence = const
-        print(f"Constant: {const_name}, Occurrences: {occurrence}")
 
     matrices = create_predicate_terms_matrices(test_formulas)
     predicate_sentences = generate_predicate_embedding_sentences(matrices)
@@ -169,21 +191,13 @@ if __name__ == "__main__":
     predicate_similarity_score = arity_predicate_matrix * compute_similarity_scores(semantic_predicate_matrix_score, lexical_predicate_matrix_score, alpha=0.1)
     constant_similarity_score = compute_similarity_scores(semantic_constant_matrix_score, lexical_constant_matrix_score, alpha=0.1)
 
-    print("\nPredicate Similarity Scores:")
-    print(predicate_similarity_score)
+    unified_predicates = build_predicate_unification_map(predicate_similarity_score, preds, threshold=0.8)
+    unified_constants = build_constant_unification_map(constant_similarity_score, constants, threshold=0.8)
 
-    print("\nConstant Similarity Scores:")
-    print(constant_similarity_score)
-
-    unified_predicates = build_unification_map(predicate_similarity_score, preds, threshold=0.8)
-    # Print all predicates that have the same representative
-    print("\nUnified Predicates:")
-    rep_to_members: dict[PRED_KEY, list[PRED_KEY]] = defaultdict(list)
-    for pred, rep in unified_predicates.items():
-        rep_to_members[rep].append(pred)
-    for rep, members in rep_to_members.items():
-        if len(members) > 1:
-            print(f"Representative: {rep}, Members: {members}")
+    rewritten_formulas = rewrite_formulae(test_formulas, unified_predicates, unified_constants)
+    for original, rewritten in zip(test_formulas, rewritten_formulas):
+        print(f"O: {original}")
+        print(f"R: {rewritten}\n")
 
 
 
