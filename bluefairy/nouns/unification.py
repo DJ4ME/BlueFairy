@@ -1,7 +1,7 @@
 import pandas as pd
 from collections import defaultdict
 from sentence_transformers import SentenceTransformer
-from bluefairy.grammar.utils import parse_or_false, PRED_KEY, predicate_similarity_score
+from bluefairy.grammar.utils import parse_or_false, PRED_KEY
 from bluefairy.nouns.embedding import build_embedding_space, build_predicate_similarity_matrix, \
     generate_predicate_embedding_sentences, generate_constant_embedding_sentences, build_constant_similarity_matrix
 from bluefairy.nouns.graph import build_predicate_unification_map, build_constant_unification_map
@@ -64,6 +64,7 @@ def create_predicate_arity_matrix(predicates: list[PRED_KEY]) -> pd.DataFrame:
     df = pd.DataFrame(data, index=index)
     df.columns = df.index
     return df
+
 
 def create_predicate_terms_matrices(list_of_fol_formulas: list[str]) -> list[pd.DataFrame]:
     """
@@ -154,12 +155,72 @@ def rewrite_formulae(
         rewritten_formulas.append(parsed.to_readable_string())
     return rewritten_formulas
 
+
+def generate_predicate_similarity_matrix(
+        predicates: dict[PRED_KEY, int],
+        matrices: list[pd.DataFrame],
+        model: SentenceTransformer,
+        predicate_alpha: float = 0.1,
+) -> pd.DataFrame:
+    """
+    Generates a predicate similarity matrix from a list of first-order logic formulas.
+    :param predicates: the dictionary of unique predicates and their occurrence count
+    :param matrices: the list of predicate terms matrices
+    :param model: the sentence transformer model to use for embeddings
+    :param predicate_alpha: the weight for lexical similarity
+    :return: a DataFrame representing the predicate similarity matrix
+    """
+    predicate_sentences = generate_predicate_embedding_sentences(matrices)
+
+    arity_predicate_matrix = create_predicate_arity_matrix(list(predicates.keys()))
+
+    embedding_predicate_space = build_embedding_space(list(predicate_sentences.values()),
+                                                      lambda x: model.encode(x, normalize_embeddings=False))
+    semantic_predicate_matrix_score = build_predicate_similarity_matrix(embedding_predicate_space, predicate_sentences)
+
+    lexical_predicate_matrix_score = build_predicate_lexical_similarity_matrix(list(predicates.keys()))
+
+    predicate_similarity_score = arity_predicate_matrix * compute_similarity_scores(semantic_predicate_matrix_score,
+                                                                                    lexical_predicate_matrix_score,
+                                                                                    alpha=predicate_alpha)
+    return predicate_similarity_score
+
+
+def generate_constant_similarity_matrix(
+        constants: dict[str, int],
+        matrices: list[pd.DataFrame],
+        model: SentenceTransformer,
+        constant_alpha: float = 0.1,
+) -> pd.DataFrame:
+    """
+    Generates a constant similarity matrix from a list of first-order logic formulas.
+    :param constants: the dictionary of unique constants and their occurrence count
+    :param matrices: the list of predicate terms matrices
+    :param model: the sentence transformer model to use for embeddings
+    :param constant_alpha: the weight for lexical similarity
+    :return: a DataFrame representing the constant similarity matrix
+    """
+    constant_sentences = generate_constant_embedding_sentences(matrices)
+
+    embedding_constant_space = build_embedding_space(list(constant_sentences.values()),
+                                                     lambda x: model.encode(x, normalize_embeddings=False))
+    semantic_constant_matrix_score = build_constant_similarity_matrix(embedding_constant_space, constant_sentences)
+
+    lexical_constant_matrix_score = build_constant_lexical_similarity_matrix(
+        [const for const, occurrence in constants.items()])
+
+    constant_similarity_score = compute_similarity_scores(semantic_constant_matrix_score, lexical_constant_matrix_score,
+                                                          alpha=constant_alpha)
+    return constant_similarity_score
+
+
 def uniformize_formulae(
         list_of_fol_formulae: list[str],
         predicate_alpha: float = 0.1,
         constant_alpha: float = 0.1,
         predicate_threshold: float = 0.8,
-        constant_threshold: float = 0.8
+        constant_threshold: float = 0.8,
+        stats: bool = False
 ) -> list[str]:
     """
     Uniformizes a list of first-order logic formulas by unifying similar predicates and constants.
@@ -168,38 +229,22 @@ def uniformize_formulae(
     :param constant_alpha: the weight for lexical similarity in constant unification
     :param predicate_threshold: the threshold for predicate unification
     :param constant_threshold: the threshold for constant unification
+    :param stats: whether to collect and print statistics
     :return: a list of uniformized first-order logic formulas
     """
     predicates = collect_predicates(list_of_fol_formulae)
     constants = collect_constants(list_of_fol_formulae)
-
+    model = SentenceTransformer('all-MiniLM-L6-v2')
     matrices = create_predicate_terms_matrices(list_of_fol_formulae)
-    predicate_sentences = generate_predicate_embedding_sentences(matrices)
-    constant_sentences = generate_constant_embedding_sentences(matrices)
-
-    arity_predicate_matrix = create_predicate_arity_matrix(list(predicates.keys()))
-
-    model = SentenceTransformer("all-mpnet-base-v2")
-    embedding_predicate_space = build_embedding_space(list(predicate_sentences.values()),
-                                                      lambda x: model.encode(x, normalize_embeddings=False))
-    semantic_predicate_matrix_score = build_predicate_similarity_matrix(embedding_predicate_space, predicate_sentences)
-
-    embedding_constant_space = build_embedding_space(list(constant_sentences.values()),
-                                                     lambda x: model.encode(x, normalize_embeddings=False))
-    semantic_constant_matrix_score = build_constant_similarity_matrix(embedding_constant_space, constant_sentences)
-
-    lexical_predicate_matrix_score = build_predicate_lexical_similarity_matrix(list(predicates.keys()))
-    lexical_constant_matrix_score = build_constant_lexical_similarity_matrix(
-        [const for const, occurrence in constants.items()])
-
-    predicate_similarity_score = arity_predicate_matrix * compute_similarity_scores(semantic_predicate_matrix_score,
-                                                                                    lexical_predicate_matrix_score,
-                                                                                    alpha=predicate_alpha)
-    constant_similarity_score = compute_similarity_scores(semantic_constant_matrix_score, lexical_constant_matrix_score,
-                                                          alpha=constant_alpha)
+    predicate_similarity_score = generate_predicate_similarity_matrix(predicates, matrices, model, predicate_alpha)
+    constant_similarity_score = generate_constant_similarity_matrix(constants, matrices, model, constant_alpha)
 
     unified_predicates = build_predicate_unification_map(predicate_similarity_score, predicates, threshold=predicate_threshold)
     unified_constants = build_constant_unification_map(constant_similarity_score, constants, threshold=constant_threshold)
+
+    if stats:
+        print(f"Number of predicate unifications: {sum(k != v for k, v in unified_predicates.items())} / {len(unified_predicates)}")
+        print(f"Number of constant unifications: {sum(k != v for k, v in unified_constants.items())} / {len(unified_constants)}")
 
     return rewrite_formulae(list_of_fol_formulae, unified_predicates, unified_constants)
 
