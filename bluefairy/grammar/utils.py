@@ -184,27 +184,38 @@ class ASTNode:
 class FolTransformer(Transformer):
 
     def formula(self, items):
-        items = [i for i in items if not (isinstance(i, Token) and i.type in {"LPAR", "RPAR"})]
+        items = [
+            i for i in items
+            if not (isinstance(i, Token) and i.type in {"LPAR", "RPAR"})
+        ]
 
         if len(items) == 1:
             i = items[0]
-            if isinstance(i, Tree):
-                return self.transform(i)
-            return i
+            return self.transform(i) if isinstance(i, Tree) else i
 
         if len(items) == 3:
             left = items[0] if isinstance(items[0], ASTNode) else self.transform(items[0])
             right = items[2] if isinstance(items[2], ASTNode) else self.transform(items[2])
 
             op_item = items[1]
-            if isinstance(op_item, Tree):
-                op = str(op_item.children[0])
-            else:
-                op = str(op_item)
+            op = str(op_item.children[0]) if isinstance(op_item, Tree) else str(op_item)
 
             return ASTNode("BINOP", op=op, left=left, right=right)
 
         return items[0]
+
+    def quantified_formula(self, items):
+        # items = [quantifier, formula]
+        (q, v), formula = items
+        if isinstance(formula, Tree):
+            formula = self.transform(formula)
+
+        return ASTNode(
+            "QUANTIFIED",
+            quantifier=q,
+            variables=[v],
+            formula=formula
+        )
 
     def VAR(self, token):
         return ASTNode("VAR", name=str(token))
@@ -225,14 +236,11 @@ class FolTransformer(Transformer):
         return ASTNode("PRED", predicate=predicate, args=args)
 
     def neg(self, items):
-        args = items[1:]
-        predicate = self.pred(args)
-        return ASTNode("NOT", arg=predicate)
+        node = items[0] if isinstance(items[0], ASTNode) else self.transform(items[0])
+        return ASTNode("NOT", arg=node)
 
     def neg_pred(self, items):
-        # 0 is the neg symbol, 1 is the predicate, additional items can be parentheses and arguments of the predicate
-        args = items[1:]
-        predicate = self.pred(args)
+        predicate = self.pred(items[1:])
         return ASTNode("NOT", arg=predicate)
 
     def binop(self, items):
@@ -240,10 +248,7 @@ class FolTransformer(Transformer):
         right = items[2] if isinstance(items[2], ASTNode) else self.transform(items[2])
 
         op_item = items[1]
-        if isinstance(op_item, Tree):
-            op = str(op_item.children[0])
-        else:
-            op = str(op_item)
+        op = str(op_item.children[0]) if isinstance(op_item, Tree) else str(op_item)
 
         return ASTNode("BINOP", op=op, left=left, right=right)
 
@@ -252,20 +257,6 @@ class FolTransformer(Transformer):
 
     def multi_quant(self, items):
         return str(items[0]), items[1]
-
-    def quantified_sentence(self, items):
-        formula = items[-1]
-        if isinstance(formula, Tree):
-            formula = self.transform(formula)
-
-        for q, v in reversed(items[:-1]):
-            formula = ASTNode(
-                "QUANTIFIED",
-                quantifier=q,
-                variables=[v] if not isinstance(v, list) else v,
-                formula=formula
-            )
-        return formula
 
     def term(self, items):
         return self.transform(items[0]) if isinstance(items[0], Tree) else items[0]

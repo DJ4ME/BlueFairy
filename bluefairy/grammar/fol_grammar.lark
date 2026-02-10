@@ -2,7 +2,6 @@
 %import common.WS
 %ignore WS
 
-// Terminals
 QUANT: "∀" | "∃"
 NOT: "¬"
 AND: "∧"
@@ -14,26 +13,25 @@ LPAR: "("
 RPAR: ")"
 COMMA: ","
 VAR: /[a-z]/
-CONST: /[a-z][a-z0-9_]*/
+CONST: /[a-zA-Z0-9_><=≥≤+-]+/
 PRED: /[A-Z][A-Za-z0-9_]*/
 
-// Non-terminals
 ?start: sentence
 
 ?sentence: formula
-         | quantifier+ formula       -> quantified_sentence
-         | sentence bin_op sentence  -> binop_sentence
+         | sentence bin_op sentence
          | LPAR sentence RPAR
+
+?formula: literal
+        | NOT formula                  -> neg
+        | quantifier formula           -> quantified_formula
+        | LPAR formula RPAR
+        | formula bin_op formula       -> binop
 
 ?quantifier: QUANT VAR -> multi_quant
 
-?formula: literal
-        | NOT formula         -> neg
-        | LPAR formula RPAR
-        | formula bin_op formula -> binop
-
-?literal: PRED LPAR terms RPAR       -> pred
-        | NOT PRED LPAR terms RPAR   -> neg_pred
+?literal: PRED LPAR terms RPAR         -> pred
+        | NOT PRED LPAR terms RPAR     -> neg_pred
 
 bin_op: XOR | OR | AND | IMPL | IFF
 

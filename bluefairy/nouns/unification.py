@@ -16,15 +16,20 @@ def collect_predicates(list_of_fol_formulas: list[str]) -> dict[PRED_KEY, int]:
     :return: a dictionary of unique predicates and their occurrence count
     """
     predicates: dict[PRED_KEY, int] = dict()
+    not_parsed = 0
     for fol in list_of_fol_formulas:
         parsed = parse_or_false(fol)
         if not parsed:
-            continue
-        for pred_name, arity in parsed.get_predicates():
-            key = (pred_name, arity)
-            if key not in predicates:
-                predicates[key] = 0
-            predicates[key] += 1
+            not_parsed += 1
+            print(fol)
+        else:
+            for pred_name, arity in parsed.get_predicates():
+                key = (pred_name, arity)
+                if key not in predicates:
+                    predicates[key] = 0
+                predicates[key] += 1
+    if not_parsed > 0:
+        print(f"Warning: {not_parsed} formulas could not be parsed.")
     return predicates
 
 
