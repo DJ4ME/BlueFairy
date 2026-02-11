@@ -13,8 +13,8 @@ LPAR: "("
 RPAR: ")"
 COMMA: ","
 VAR: /[a-z]/
-CONST: /[a-zA-Z0-9_><=≥≤+-]+/
-PRED: /[A-Z][A-Za-z0-9_]*/
+CONST: /[a-zA-Z0-9\._><=≥≤+-]+/
+PRED: /[A-Z][A-Za-z0-9\._]*/
 
 ?start: sentence
 
