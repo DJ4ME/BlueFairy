@@ -1,0 +1,28 @@
+NL,FOL
+"A balanced diet that includes a variety of fruits, vegetables, and lean proteins can provide essential nutrients and promote overall health and wellness.","∀x∀y∀z (BalancedDiet(x) ∧ VarietyOfFruits(y) ∧ Vegetables(z) ∧ LeanProteins(x) ∧ IncludesElements(x, y, z) → ProvidesEssentialNutrients(x) ∧ PromotesOverallHealthAndWellness(x))"
+"A beverage that contains caffeine, is served hot, and is made from roasted seeds is coffee.","∀x∀y (Beverage(x) ∧ ContainsCaffeine(x) ∧ ServedHot(x) ∧ RoastedSeeds(y) ∧ MadeFrom(x, y) → Coffee(x))"
+"A dessert that is made from milk, sugar, and flavorings and is frozen is ice cream.",∀x (Dessert(x) ∧ MadeFromMilk(x) ∧ Sugar(x) ∧ Flavorings(x) ∧ Frozen(x) → IceCream(x))
+"A healthy diet consisting of a variety of fruits, vegetables, whole grains, and lean proteins promotes overall well-being and reduces the risk of chronic diseases.",∀x (HealthyDiet(x) ∧ ContainsVarietyOfFruitsVegetablesWholeGrainsLeanProteins(x) → PromotesWellBeingAndReducesRiskOfChronicDiseases(x))
+"A meal is satisfying if it's flavorful, has a variety of textures, and doesn't leave one feeling overly full or still hungry.",∀x (Meal(x) ∧ Satisfying(x) ↔ (Flavorful(x) ∧ VarietyOfTextures(x) ∧ ¬OverlyFull(x) ∧ ¬StillHungry(x)))
+"A professional athlete maintains a strict training schedule, adheres to a healthy diet, and prioritizes rest and recovery.",∀x (ProfessionalAthlete(x) ∧ (StrictTrainingSchedule(x) ∧ HealthyDiet(x) ∧ PrioritizesRestAndRecovery(x)))
+"A healthy diet includes fruits, vegetables, and lean proteins, but avoids excessive sugar and saturated fats.",∀x (HealthyDiet(x) ↔ (IncludesFruits(x) ∧ IncludesVegetables(x) ∧ IncludesLeanProteins(x) ∧ ¬ExcessiveSugar(x) ∧ ¬SaturatedFats(x)))
+"Fruits that are rich in vitamin C, such as oranges and lemons, can help strengthen the immune system.",∀x (Fruit(x) ∧ RichInVitaminC(x) ∧ (Orange(x) ∨ Lemon(x)) → StrengthenImmuneSystem(x))
+"A meal is considered healthy if it contains a balanced proportion of proteins, carbohydrates, and fats.",∀x (Meal(x) ∧ BalancedProportionOfProteins(x) ∧ BalancedProportionOfCarbohydrates(x) ∧ BalancedProportionOfFats(x) → Healthy(x))
+"A fruit is either sweet or sour, and it is not a vegetable.",∀x (Fruit(x) → (Sweet(x) ⊕ Sour(x)) ∧ ¬Vegetable(x))
+"A restaurant serves vegetarian or vegan options, but not if it's a steakhouse or if it only offers a seafood menu.",∀x (Restaurant(x) ∧ ¬(Steakhouse(x) ∨ SeafoodMenuOnly(x)) → (ServesVegetarian(x) ∨ ServesVegan(x)))
+"A dessert is more appealing if it has a rich flavor or pleasing presentation, but not if it's high in calories.",∃x (Dessert(x) ∧ ((RichFlavor(x) ∨ PleasingPresentation(x)) ∧ ¬HighInCalories(x) → MoreAppealing(x)))
+"A nutritious meal contains a balance of protein, carbohydrates, and healthy fats while providing essential vitamins and minerals.",∀x (Meal(x) ∧ BalanceOfProtein(x) ∧ BalanceOfCarbohydrates(x) ∧ BalanceOfHealthyFats(x) ∧ ProvidesEssentialVitaminsAndMinerals(x) → Nutritious(x))
+"A food is classified as junk food if it has high calories, low nutritional value, and contains excessive amounts of sugar, fat, or salt.",∀x (Food(x) ∧ HighCalories(x) ∧ LowNutritionalValue(x) ∧ (ExcessiveSugar(x) ∨ ExcessiveFat(x) ∨ ExcessiveSalt(x)) → JunkFood(x))
+A person is a vegetarian if they do not consume meat or fish.,∀x (Vegetarian(x) → (Person(x) ∧ ¬ConsumesMeat(x) ∧ ¬ConsumesFish(x)))
+A person is considered an omnivore if they consume both plants and animals for sustenance.,∀x (Person(x) ∧ ConsumesPlants(x) ∧ ConsumesAnimals(x) → Omnivore(x))
+"A healthy diet includes a variety of fruits, vegetables, whole grains, and lean proteins.",∀x (HealthyDiet(x) ↔ (VarietyOfFruits(x) ∧ VarietyOfVegetables(x) ∧ WholeGrains(x) ∧ LeanProteins(x)))
+"A cooking class can teach students how to prepare vegan or gluten-free dishes, but not if the class is focused on traditional cuisine or if it's a baking class.",∀x (CookingClass(x) ∧ ¬(TraditionalCuisine(x) ∨ BakingClass(x)) → (TeachesVeganDishes(x) ∨ TeachesGlutenFreeDishes(x)))
+A food is considered spicy if it contains chili peppers or hot sauce.,∀x (Food(x) ∧ (ContainsChiliPeppers(x) ∨ ContainsHotSauce(x)) → Spicy(x))
+"Tea and coffee are popular beverages that contain caffeine, but tea typically has less caffeine than coffee.","∀x ∀y (Tea(x) ∧ Coffee(y) → (PopularBeverage(x) ∧ PopularBeverage(y) ∧ ContainsCaffeine(x) ∧ ContainsCaffeine(y) ∧ LessCaffeine(x, y)))"
+A meal is satisfying when it has vegetables and protein.,∀x (Meal(x) ∧ Vegetables(x) ∧ Protein(x) → Satisfying(x))
+A person who consumes excessive amounts of sugar is at a higher risk of developing type 2 diabetes.,∀x (ExcessiveSugarConsumption(x) → HigherRiskOfType2Diabetes(x))
+A person is a vegetarian if they do not eat meat.,∀x (Person(x) ∧ ¬EatsMeat(x) → Vegetarian(x))
+Fruits with a higher vitamin C content are better at preventing scurvy than those with lower amounts.,"∀x ∀y (Fruit(x) ∧ Fruit(y) ∧ HigherVitaminCContent(x, y) → BetterPreventScurvy(x, y))"
+"An athlete who follows a rigorous training regimen, consumes a well-balanced diet, and gets enough sleep can maximize their performance potential.",∀x (Athlete(x) ∧ RigorousTrainingRegimen(x) ∧ WellBalancedDiet(x) ∧ EnoughSleep(x) → MaximizesPerformancePotential(x))
+"A healthy lifestyle involves regular physical activity, a balanced diet, and sufficient sleep.",∀x (HealthyLifestyle(x) → RegularPhysicalActivity(x) ∧ BalancedDiet(x) ∧ SufficientSleep(x))
+"Lions are carnivores, cows are herbivores, and humans are omnivores.",∀x∀y∀z (Lion(x) → Carnivore(x)) ∧ (Cow(y) → Herbivore(y)) ∧ (Human(z) → Omnivore(z))

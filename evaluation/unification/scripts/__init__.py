@@ -38,9 +38,9 @@ def select_best_alpha_tau(df: pd.DataFrame, cluster_col="NumNonTrivialClusters")
         diffs = np.abs(np.diff(clusters))
         if len(diffs) == 0:
             continue
-        iqr = np.percentile(diffs, 75) - np.percentile(diffs, 25)
+        #iqr = np.percentile(diffs, 75) - np.percentile(diffs, 25)
         # use the median instead of iqr
-        # iqr = np.median(diffs)
+        iqr = np.median(diffs)
 
         stable_indices = []
         for idx in max_indices:

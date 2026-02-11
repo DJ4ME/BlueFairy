@@ -11,7 +11,7 @@ if __name__ == "__main__":
     alpha = 0.9
 
     predicates, matrix = initialize_components(fol_formulae, alpha=alpha)
-    thresholds = [0.5 + i * 0.025 for i in range(1, 20)]
+    thresholds = [0.825] #[0.5 + i * 0.025 for i in range(1, 20)]
     maps = create_predicate_merge_mappings(thresholds, predicates, matrix)
     max_num_of_clusters = 0
     best_threshold = 0.0
@@ -23,7 +23,7 @@ if __name__ == "__main__":
                 data.append([int(arity), pred_name, rep_name])
         data = pd.DataFrame(data, columns=['Arity', 'Predicate', 'Representative'])
         threshold_str = str(int(thresholds[maps.index(m)] * 1000))
-        data.to_csv(PATH / f'predicate_map_a{str(alpha*10)}_t{threshold_str}.csv', index=False)
+        data.to_csv(PATH / f'predicate_map_a{str(int(alpha*10))}_t{threshold_str}.csv', index=False)
         # Determine number of clusters with at least one member
         num_of_clusters = len(set(v for (k,_), (v, _) in m.items() if k != v))
         if num_of_clusters > max_num_of_clusters:

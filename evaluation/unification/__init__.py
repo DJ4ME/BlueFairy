@@ -12,7 +12,8 @@ if __name__ == "__main__":
     fol_formulae = test_set['FOL'].tolist()
     unified_formulae = uniformize_formulae(
         fol_formulae,
-        predicate_threshold=0.95,
+        predicate_threshold=0.9,
+        predicate_alpha=0.0,
         stats=True
     )
 
