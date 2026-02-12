@@ -97,7 +97,7 @@ class HuggingFaceLanguageModel(LanguageModel):
             **inputs,
             max_new_tokens=max_output,
             temperature=temperature,
-            do_sample=temperature > 0,
+            do_sample=True,
             pad_token_id=self.tokenizer.eos_token_id,
         )
 

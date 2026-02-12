@@ -1,4 +1,5 @@
 .idea
+huggingFaceUtils/models/*/*
 ollamaUtils/models.json
 test/data/*.json
 test/data/*.csv
