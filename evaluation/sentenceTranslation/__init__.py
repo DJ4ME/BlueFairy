@@ -1,8 +1,11 @@
+import argparse
+from pathlib import Path
 from bluefairy.norms import run_norms_translation
 from bluefairy.nouns import Stakeholder
 from core import LanguageModelProvider
 from evaluation.data import load_examples, load_test_set
 from evaluation.sentenceTranslation.results import PATH as RESULTS_PATH
+from huggingFaceUtils import HuggingFaceService
 from ollamaUtils import OLLAMA_URL, OLLAMA_PORT, OllamaService
 
 
@@ -20,54 +23,106 @@ LLM_FOR_TESTING = [
 ]
 
 
+def get_provider(backend: str) -> LanguageModelProvider:
+    backend = backend.lower()
+
+    if backend == "ollama":
+        return OllamaService(OLLAMA_URL, OLLAMA_PORT)
+
+    elif backend == "hf":
+        return HuggingFaceService()
+
+    else:
+        raise ValueError(f"Unsupported backend: {backend}")
+
+
 def translate_norms(provider: LanguageModelProvider,
                     model_name: str,
                     norms: list[str],
                     examples: str = "",
-                    output_file = None
+                    output_file: Path | None = None
                     ) -> None:
     stakeholder = Stakeholder(model_name)
     stakeholder.norms = norms
     run_norms_translation([stakeholder], provider, model_name, examples, output_file)
 
 
+def sanitize_name(model_name: str) -> str:
+    return model_name.replace(':', '_').replace('\\', '_').replace('/', '_')
+
+
 if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--backend",
+        type=str,
+        required=True,
+        choices=["ollama", "hf"],
+        help="Backend to use: ollama or hf"
+    )
+
+    args = parser.parse_args()
+
+    provider = get_provider(args.backend)
+
     test_set = load_test_set()
     examples_df = load_examples()
+
     examples_txt = examples_df.apply(
-        lambda row: f"Textual Norm: {row['NL']}\nLogical Norm: {row['FOL']}\n", axis=1
+        lambda row: f"Textual Norm: {row['NL']}\nLogical Norm: {row['FOL']}\n",
+        axis=1
     ).str.cat(sep="\n")
 
-    # With examples
+    print(f"\nUsing backend: {args.backend}")
+    print(f"Provider: {provider}\n")
+
+    # ======================
+    # WITH EXAMPLES
+    # ======================
+
     for llm in LLM_FOR_TESTING:
-        pattern_name = llm.replace(':', '_').replace('\\', '_').replace('/', '_')
-        file = RESULTS_PATH / f"{pattern_name}_examples.csv"
+
+        pattern_name = sanitize_name(llm)
+        file = RESULTS_PATH / f"{pattern_name}_{args.backend}_examples.csv"
+
         if file.exists():
-            print(f"Skipping norms translation tests for model: {llm} as results file already exists.\n\n")
+            print(f"Skipping (examples) for model: {llm} — file exists.")
             continue
-        print(f"Running norms translation tests with examples for model: {llm}")
+
+        print(f"Running (examples) for model: {llm}")
+
         translate_norms(
-            provider=OllamaService(OLLAMA_URL, OLLAMA_PORT),
+            provider=provider,
             model_name=llm,
             norms=test_set['NL'].tolist(),
             examples=examples_txt,
             output_file=file
         )
-        print(f"Completed norms translation tests for model: {llm}\n\n")
 
-    # Without examples
+        print(f"Completed (examples) for model: {llm}\n")
+
+    # ======================
+    # WITHOUT EXAMPLES
+    # ======================
+
     for llm in LLM_FOR_TESTING:
-        pattern_name = llm.replace(':', '_').replace('\\', '_').replace('/', '_')
-        file = RESULTS_PATH / f"{pattern_name}_no_examples.csv"
+
+        pattern_name = sanitize_name(llm)
+        file = RESULTS_PATH / f"{pattern_name}_{args.backend}_no_examples.csv"
+
         if file.exists():
-            print(f"Skipping norms translation tests for model: {llm} as results file already exists.\n\n")
+            print(f"Skipping (no examples) for model: {llm} — file exists.")
             continue
-        print(f"Running norms translation tests without examples for model: {llm}")
+
+        print(f"Running (no examples) for model: {llm}")
+
         translate_norms(
-            provider=OllamaService(OLLAMA_URL, OLLAMA_PORT),
+            provider=provider,
             model_name=llm,
             norms=test_set['NL'].tolist(),
             examples="",
             output_file=file
         )
-        print(f"Completed norms translation tests for model: {llm}\n\n")
+
+        print(f"Completed (no examples) for model: {llm}\n")
