@@ -1,5 +1,5 @@
 import torch
-
+import pynvml
 from bluefairy.nouns import Stakeholder
 from bluefairy.nouns.utils import TextualNorm, LogicalNorm
 from bluefairy.prompts import load_system_prompt, PromptTask, PATH
@@ -12,6 +12,29 @@ OLLAMA_MODEL = "phi3.5:latest"
 DEFAULT_TEMPERATURE = 0.0
 DEFAULT_NOUNS_FILE = "norms_translation.csv"
 HEADER = "Stakeholder,TextualNorm,LogicalNorm\n"
+
+
+def compute_safe_batch_size(token_len_per_example: int = 512, safety_factor: float = 0.5) -> int:
+    """
+    Compute a safe batch size based on actual free GPU memory.
+    :param token_len_per_example: average number of tokens per input example
+    :param safety_factor: fraction of free memory to actually use (0.5 = 50%)
+    :return: batch size (>=1)
+    """
+    if not torch.cuda.is_available():
+        return 1
+
+    pynvml.nvmlInit()
+    handle = pynvml.nvmlDeviceGetHandleByIndex(torch.cuda.current_device())
+    mem_info = pynvml.nvmlDeviceGetMemoryInfo(handle)
+    free_bytes = mem_info.free * safety_factor
+
+    # Approximate memory per example (in bytes): float32 * tokens * vocab_embedding_factor
+    # Using 4 bytes per float
+    # Assume maximum hidden state size is around 4096, so we can use that as a multiplier for the token length
+    mem_per_example = token_len_per_example * 4 * 4096
+    batch_size = max(1, int(free_bytes / mem_per_example))
+    return batch_size
 
 
 def textual_norm_to_logic_norm(
@@ -43,7 +66,6 @@ def run_norms_translation(
         model_name: str = "",
         examples: str = "",
         output_file =PATH / DEFAULT_NOUNS_FILE,
-        batch_size: int | None = None
     ) -> None:
     """
     Translates textual norms into logical norms for each stakeholder with optional batching for HF.
@@ -58,12 +80,9 @@ def run_norms_translation(
                 all_norms.append(textual_norm)
                 all_stakeholders.append(stakeholder.noun)
 
-        if torch.cuda.is_available():
-            free_mem, total_mem = torch.cuda.mem_get_info()
-            batch_size = max(1, int(((free_mem / (1024**3)) * 50000 / 512) / 2))
-            print(f"GPU detected.\nFree memory: {free_mem / (1024**3):.2f} GB\nTotal memory: {total_mem / (1024**3):.2f} GB.\nUsing batch size: {batch_size}")
-        else:
-            batch_size = 1
+
+        batch_size = compute_safe_batch_size()
+        print(f"Using batch size of {batch_size} for model: {model_name}")
 
         for i in range(0, len(all_norms), batch_size):
             batch_norms = all_norms[i:i+batch_size]
