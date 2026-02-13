@@ -60,7 +60,8 @@ def run_norms_translation(
 
         if torch.cuda.is_available():
             free_mem, total_mem = torch.cuda.mem_get_info()
-            batch_size = max(1, int((free_mem / (1024**3)) * 50000 / 512))
+            batch_size = max(1, int(((free_mem / (1024**3)) * 50000 / 512) / 2))
+            print(f"GPU detected.\nFree memory: {free_mem / (1024**3):.2f} GB\nTotal memory: {total_mem / (1024**3):.2f} GB.\nUsing batch size: {batch_size}")
         else:
             batch_size = 1
 
