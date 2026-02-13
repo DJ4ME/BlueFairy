@@ -33,8 +33,9 @@ def compute_safe_batch_size(token_len_per_example: int = 512, safety_factor: flo
     # Approximate memory per example (in bytes): float32 * tokens * vocab_embedding_factor
     # Using 4 bytes per float
     # Assume maximum vocab_embedding_factor to be around 8 for safety (depends on model architecture)
-    mem_per_example = token_len_per_example * 4 * 8
+    mem_per_example = token_len_per_example * 4 * 4096
     batch_size = max(1, int(free_bytes / mem_per_example))
+    # 206600
     return batch_size
 
 
