@@ -45,13 +45,14 @@ def get_provider(backend: str) -> LanguageModelProvider:
 
 def translate_norms(provider: LanguageModelProvider,
                     model_name: str,
+                    batch_size: int,
                     norms: list[str],
                     examples: str = "",
                     output_file: Path | None = None
                     ) -> None:
     stakeholder = Stakeholder(model_name)
     stakeholder.norms = norms
-    run_norms_translation([stakeholder], provider, model_name, examples, output_file)
+    run_norms_translation([stakeholder], provider, batch_size, model_name, examples, output_file)
 
 
 def sanitize_name(model_name: str) -> str:

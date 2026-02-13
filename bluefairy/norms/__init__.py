@@ -14,20 +14,6 @@ DEFAULT_NOUNS_FILE = "norms_translation.csv"
 HEADER = "Stakeholder,TextualNorm,LogicalNorm\n"
 
 
-def compute_safe_batch_size(token_len_per_example: int = 512, safety_factor: float = 0.2) -> int:
-    """
-    Compute a safe batch size based on actual free GPU memory.
-    :param token_len_per_example: average number of tokens per input example
-    :param safety_factor: fraction of free memory to actually use (0.5 = 50%)
-    :return: batch size (>=1)
-    """
-    if not torch.cuda.is_available():
-        return 1
-
-    else:
-        return 32
-
-
 def textual_norm_to_logic_norm(
         provider: LanguageModelProvider,
         model_name: str = "",
@@ -54,6 +40,7 @@ def textual_norm_to_logic_norm(
 def run_norms_translation(
         stakeholders: list[Stakeholder],
         provider: LanguageModelProvider,
+        batch_size: int = 16,
         model_name: str = "",
         examples: str = "",
         output_file =PATH / DEFAULT_NOUNS_FILE,
@@ -71,8 +58,6 @@ def run_norms_translation(
                 all_norms.append(textual_norm)
                 all_stakeholders.append(stakeholder.noun)
 
-
-        batch_size = compute_safe_batch_size()
         print(f"Using batch size of {batch_size} for model: {model_name}")
 
         for i in range(0, len(all_norms), batch_size):

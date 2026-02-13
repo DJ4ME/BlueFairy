@@ -13,10 +13,17 @@ if __name__ == "__main__":
         choices=["ollama", "hf"],
         help="Backend to use: ollama or hf"
     )
+    parser.add_argument(
+        "--batch_size",
+        type=int,
+        default=16,
+        help="Batch size for HuggingFace models (ignored for Ollama)"
+    )
 
     args = parser.parse_args()
 
     provider = get_provider(args.backend)
+    batch_size = args.batch_size if args.backend == "hf" else 1
 
     test_set = load_test_set()
     examples_df = load_examples()
@@ -52,6 +59,7 @@ if __name__ == "__main__":
         translate_norms(
             provider=provider,
             model_name=llm,
+            batch_size=batch_size,
             norms=test_set['NL'].tolist(),
             examples=examples_txt,
             output_file=file
@@ -77,6 +85,7 @@ if __name__ == "__main__":
         translate_norms(
             provider=provider,
             model_name=llm,
+            batch_size=batch_size,
             norms=test_set['NL'].tolist(),
             examples="",
             output_file=file
