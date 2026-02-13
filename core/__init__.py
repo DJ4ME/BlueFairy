@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 # Abstract class for language models
 class LanguageModel(ABC):
     @abstractmethod
-    def ask(self, question: str, max_output: int, temperature: float) -> str:
+    def ask(self, question: str | list[str], max_output: int, temperature: float) -> str:
         pass
 
 
