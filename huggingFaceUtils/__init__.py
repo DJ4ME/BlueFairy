@@ -59,7 +59,7 @@ class HuggingFaceLanguageModel(LanguageModel):
         self.model = AutoModelForCausalLM.from_pretrained(
             model_name,
             cache_dir=cache_dir,
-            torch_dtype=dtype,
+            dtype=dtype,
             device_map="auto" if device == "cuda" else None,
         )
 
@@ -81,10 +81,7 @@ class HuggingFaceLanguageModel(LanguageModel):
             questions = question
             single = False
 
-        prompts = [
-            self._build_prompt(q)
-            for q in questions
-        ]
+        prompts = [self._build_prompt(q) for q in questions]
 
         inputs = self.tokenizer(
             prompts,
@@ -93,25 +90,44 @@ class HuggingFaceLanguageModel(LanguageModel):
             truncation=True,
         ).to(self.device)
 
-        outputs = self.model.generate(
-            **inputs,
-            max_new_tokens=max_output,
-            temperature=temperature,
-            do_sample=temperature > 0,
-            pad_token_id=self.tokenizer.eos_token_id,
-        )
+        if temperature == 0.0:
+            outputs = self.model.generate(
+                **inputs,
+                max_new_tokens=max_output,
+                do_sample=False,
+                pad_token_id=self.tokenizer.eos_token_id,
+            )
+        else:
+            outputs = self.model.generate(
+                **inputs,
+                max_new_tokens=max_output,
+                do_sample=True,
+                temperature=temperature,
+                pad_token_id=self.tokenizer.eos_token_id,
+            )
+
+        input_length = inputs["input_ids"].shape[1]
 
         decoded = self.tokenizer.batch_decode(
-            outputs[:, inputs["input_ids"].shape[1]:],
+            outputs[:, input_length:],
             skip_special_tokens=True,
         )
 
         return decoded[0] if single else decoded
 
     def _build_prompt(self, question: str) -> str:
+        messages = []
+
         if self.system_prompt:
-            return f"{self.system_prompt}\n\n{question}"
-        return question
+            messages.append({"role": "system", "content": self.system_prompt})
+
+        messages.append({"role": "user", "content": question})
+
+        return self.tokenizer.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True,
+        )
 
     def __str__(self):
         return f"HuggingFaceLanguageModel(model={self.model_name}, device={self.device})"
