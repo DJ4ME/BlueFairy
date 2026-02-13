@@ -14,7 +14,7 @@ DEFAULT_NOUNS_FILE = "norms_translation.csv"
 HEADER = "Stakeholder,TextualNorm,LogicalNorm\n"
 
 
-def compute_safe_batch_size(token_len_per_example: int = 512, safety_factor: float = 0.5) -> int:
+def compute_safe_batch_size(token_len_per_example: int = 512, safety_factor: float = 0.2) -> int:
     """
     Compute a safe batch size based on actual free GPU memory.
     :param token_len_per_example: average number of tokens per input example
