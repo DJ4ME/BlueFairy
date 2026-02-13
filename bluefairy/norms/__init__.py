@@ -1,3 +1,5 @@
+import torch
+
 from bluefairy.nouns import Stakeholder
 from bluefairy.nouns.utils import TextualNorm, LogicalNorm
 from bluefairy.prompts import load_system_prompt, PromptTask, PATH
@@ -40,37 +42,43 @@ def run_norms_translation(
         provider: LanguageModelProvider,
         model_name: str = "",
         examples: str = "",
-        output_file=PATH / DEFAULT_NOUNS_FILE
+        output_file =PATH / DEFAULT_NOUNS_FILE,
+        batch_size: int | None = None
     ) -> None:
-
-    system_prompt = load_system_prompt(PromptTask.norms_translation)
-    system_prompt = system_prompt.replace(
-        "{FEW_SHOT_EXAMPLES}" if examples != "" else "\nEXAMPLES\n{FEW_SHOT_EXAMPLES}\n---",
-        examples
-    )
-
-    model = provider.use(
-        OLLAMA_MODEL if model_name == "" else model_name,
-        system_prompt
-    )
-
+    """
+    Translates textual norms into logical norms for each stakeholder with optional batching for HF.
+    """
     with open(output_file, mode='w', encoding='utf-8') as f:
         f.write(HEADER)
 
+        all_norms = []
+        all_stakeholders = []
         for stakeholder in stakeholders:
-            norms = stakeholder.norms
+            for textual_norm in stakeholder.norms:
+                all_norms.append(textual_norm)
+                all_stakeholders.append(stakeholder.noun)
 
-            if not norms:
-                continue
+        if torch.cuda.is_available():
+            free_mem, total_mem = torch.cuda.mem_get_info()
+            batch_size = max(1, int((free_mem / (1024**3)) * 50000 / 512))
+        else:
+            batch_size = 1
 
-            responses = model.ask(
-                norms,
+        for i in range(0, len(all_norms), batch_size):
+            batch_norms = all_norms[i:i+batch_size]
+            batch_stakeholders = all_stakeholders[i:i+batch_size]
+
+            logical_norms = provider.use(model_name, examples).ask(
+                batch_norms,
                 max_output=256,
-                temperature=DEFAULT_TEMPERATURE
+                temperature=DEFAULT_TEMPERATURE,
             )
 
-            for textual_norm, logical_norm in zip(norms, responses):
-                logical_norm = logical_norm.split('\n')[0].strip()
-                f.write(f'{stakeholder.noun},"{textual_norm}",{logical_norm}\n')
+            if isinstance(logical_norms, str):
+                logical_norms = [logical_norms]
+
+            for noun, textual_norm, logical_norm in zip(batch_stakeholders, batch_norms, logical_norms):
+                logical_norm = logical_norm.split("\n")[0].strip()
+                f.write(f'{noun},"{textual_norm}",{logical_norm}\n')
 
     print(f"Norms translation completed. Translated norms saved to {output_file}.")

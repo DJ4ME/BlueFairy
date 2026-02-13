@@ -71,7 +71,6 @@ class HuggingFaceLanguageModel(LanguageModel):
         question: str | list[str],
         max_output: int = 1024,
         temperature: float = 0.0,
-        batch_size: int | None = None,
     ) -> str | list[str]:
 
         if isinstance(question, str):
