@@ -26,7 +26,6 @@ HF_MODELS = [
     "stabilityai/stablelm-zephyr-3b",
     "microsoft/Phi-3-mini-4k-instruct",
     "mistralai/Mistral-7B-Instruct-v0.3",
-    "teknium/OpenHermes-2.5-Mistral-7B",
     "meta-llama/Meta-Llama-3-8B-Instruct",
     "deepseek-ai/DeepSeek-R1-Distill-Llama-8B"
 ]
