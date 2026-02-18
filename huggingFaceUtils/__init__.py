@@ -1,8 +1,12 @@
+import os
 import torch
 from pathlib import Path
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from core import LanguageModelProvider, LanguageModel
 from huggingFaceUtils.models import PATH as MODELS_PATH
+
+
+HF_AUTH_TOKEN = os.environ.get("HF_AUTH_TOKEN", None)
 
 
 class HuggingFaceService(LanguageModelProvider):
@@ -51,6 +55,7 @@ class HuggingFaceLanguageModel(LanguageModel):
             model_name,
             cache_dir=cache_dir,
             use_fast=True,
+            token=HF_AUTH_TOKEN if HF_AUTH_TOKEN else None,
         )
 
         if self.tokenizer.pad_token is None:
