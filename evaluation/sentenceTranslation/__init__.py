@@ -24,6 +24,8 @@ HF_MODELS = [
     #"yuan-yang/LogicLLaMA-7b-naive-correction-delta-v0",
     "Qwen/Qwen2.5-3B",
     "Qwen/Qwen2.5-7B",
+    "Qwen/Qwen2.5-3B-Instruct",
+    "Qwen/Qwen2.5-7B-Instruct",
     "stabilityai/stablelm-zephyr-3b",
     "microsoft/Phi-3-mini-4k",
     "mistralai/Mistral-7B-v0.3",
