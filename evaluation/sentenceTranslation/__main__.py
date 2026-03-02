@@ -1,16 +1,27 @@
+import pandas as pd
 from evaluation.data import load_examples, load_test_set
 import argparse
+from evaluation import PATH
 from evaluation.sentenceTranslation.results import PATH as RESULTS_PATH
-from evaluation.sentenceTranslation import get_provider, sanitize_name, translate_norms, HF_MODELS, OLLAMA_MODELS
+from evaluation.sentenceTranslation import get_provider, sanitize_name, translate_norms
+
+ALLOWED_MODELS = pd.read_csv(PATH / "models-to-test.csv")["model"].tolist()
 
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
+        "--model",
+        type=str,
+        required=True,
+        choices=ALLOWED_MODELS,
+        help=f"Model to test. Allowed values: {', '.join(ALLOWED_MODELS)}"
+    )
+    parser.add_argument(
         "--backend",
         type=str,
         required=True,
-        choices=["ollama", "hf"],
+        choices=["ollama", "hf","OpenAI"],
         help="Backend to use: ollama or hf"
     )
     parser.add_argument(
@@ -22,6 +33,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    llm = args.model
     provider = get_provider(args.backend)
     batch_size = args.batch_size if args.backend == "hf" else 1
 
@@ -40,20 +52,12 @@ if __name__ == "__main__":
     # WITH EXAMPLES
     # ======================
 
-    if args.backend == "hf":
-        models_to_test = HF_MODELS
+    pattern_name = sanitize_name(llm)
+    file = RESULTS_PATH / f"{pattern_name}_{args.backend}_examples.csv"
+
+    if file.exists():
+        print(f"Skipping (examples) for model: {llm} — file exists.")
     else:
-        models_to_test = OLLAMA_MODELS
-
-    for llm in models_to_test:
-
-        pattern_name = sanitize_name(llm)
-        file = RESULTS_PATH / f"{pattern_name}_{args.backend}_examples.csv"
-
-        if file.exists():
-            print(f"Skipping (examples) for model: {llm} — file exists.")
-            continue
-
         print(f"Running (examples) for model: {llm}")
 
         translate_norms(
@@ -71,15 +75,12 @@ if __name__ == "__main__":
     # WITHOUT EXAMPLES
     # ======================
 
-    for llm in models_to_test:
+    pattern_name = sanitize_name(llm)
+    file = RESULTS_PATH / f"{pattern_name}_{args.backend}_no_examples.csv"
 
-        pattern_name = sanitize_name(llm)
-        file = RESULTS_PATH / f"{pattern_name}_{args.backend}_no_examples.csv"
-
-        if file.exists():
-            print(f"Skipping (no examples) for model: {llm} — file exists.")
-            continue
-
+    if file.exists():
+        print(f"Skipping (no examples) for model: {llm} — file exists.")
+    else:
         print(f"Running (no examples) for model: {llm}")
 
         translate_norms(

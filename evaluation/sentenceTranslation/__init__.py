@@ -4,34 +4,7 @@ from bluefairy.nouns import Stakeholder
 from core import LanguageModelProvider
 from huggingFaceUtils import HuggingFaceService
 from ollamaUtils import OLLAMA_URL, OLLAMA_PORT, OllamaService
-
-
-OLLAMA_MODELS = [
-    "qwen2.5:1.5b",
-    "stablelm-zephyr:latest",
-    "phi3.5:latest",
-    "phi3:latest",
-    "mistral:latest",
-    "openhermes:latest",
-    "medllama2:latest",
-    "qwen2.5:latest",
-    "cyberuser42/DeepSeek-R1-Distill-Llama-8B:latest",
-    "llama3:latest"
-]
-
-HF_MODELS = [
-    #"yuan-yang/LogicLLaMA-13b-direct-translate-delta-v0.1",
-    #"yuan-yang/LogicLLaMA-7b-naive-correction-delta-v0",
-    "Qwen/Qwen2.5-3B",
-    "Qwen/Qwen2.5-7B",
-    "Qwen/Qwen2.5-3B-Instruct",
-    "Qwen/Qwen2.5-7B-Instruct",
-    "stabilityai/stablelm-zephyr-3b",
-    "microsoft/Phi-3-mini-4k",
-    "mistralai/Mistral-7B-v0.3",
-    "meta-llama/Meta-Llama-3-8B-Instruct",
-    "deepseek-ai/DeepSeek-R1-Distill-Llama-8B"
-]
+from openAIUtils import OpenAIService
 
 
 def get_provider(backend: str) -> LanguageModelProvider:
@@ -42,6 +15,9 @@ def get_provider(backend: str) -> LanguageModelProvider:
 
     elif backend == "hf":
         return HuggingFaceService()
+
+    elif backend == "OpenAI":
+        return OpenAIService()
 
     else:
         raise ValueError(f"Unsupported backend: {backend}")
