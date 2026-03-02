@@ -5,6 +5,7 @@ test/data/*.json
 test/data/*.csv
 evaluation/**/*.csv
 evaluation/**/*.pdf
+!evaluation/models-to-test.csv
 **/cache/*.csv
 **/cache/*.txt
 
