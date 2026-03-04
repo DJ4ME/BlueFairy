@@ -4,6 +4,7 @@ from pathlib import Path
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from core import LanguageModelProvider, LanguageModel
 from huggingFaceUtils.models import PATH as MODELS_PATH
+from huggingface_hub import login
 
 
 HF_AUTH_TOKEN = os.environ.get("HF_AUTH_TOKEN", None)
@@ -19,6 +20,7 @@ class HuggingFaceService(LanguageModelProvider):
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.dtype = dtype or (torch.float16 if self.device == "cuda" else torch.float32)
         self.cache_dir = cache_dir
+        login(HF_AUTH_TOKEN)
 
     def use(self, language_model: str, system_prompt: str) -> LanguageModel:
         return HuggingFaceLanguageModel(

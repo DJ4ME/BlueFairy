@@ -5,6 +5,7 @@ from evaluation import PATH
 from evaluation.sentenceTranslation.results import PATH as RESULTS_PATH
 from evaluation.sentenceTranslation import get_provider, sanitize_name, translate_norms
 
+
 ALLOWED_MODELS = pd.read_csv(PATH / "models-to-test.csv")["model"].tolist()
 
 if __name__ == "__main__":
