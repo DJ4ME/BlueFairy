@@ -6,8 +6,8 @@ HF,Qwen/Qwen2.5-7B-Instruct
 HF,Qwen/Qwen3.5-2B
 HF,Qwen/Qwen3.5-4B
 HF,Qwen/Qwen3.5-9B
-HF,microsoft/Phi-3-mini-4k
-HF,mistralai/Mistral-7B-v0.3
+HF,microsoft/Phi-3-mini-4k-instruct
+HF,mistralai/Mistral-7B-Instruct-v0.3
 HF,stabilityai/stablelm-zephyr-3b
 HF,meta-llama/Meta-Llama-3-8B-Instruct
 HF,deepseek-ai/DeepSeek-R1-Distill-Llama-8B
