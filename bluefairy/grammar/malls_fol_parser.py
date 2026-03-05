@@ -10,7 +10,6 @@ import numpy as np
 from itertools import product, permutations
 from Levenshtein import distance as edit_dist
 
-# TODO inefficient
 op_ls = ['⊕', '∨', '∧', '→', '↔', '∀', '∃', '¬', '(', ')', ',']
 
 sym_reg = re.compile(r'[^⊕∨∧→↔∀∃¬(),]+')

@@ -1,25 +1,28 @@
 from pathlib import Path
 from typing import Iterable
-
 import pandas as pd
 import matplotlib.pyplot as plt
-from evaluation.analysis import PATH as ANALYSIS_PATH
+from evaluation.sentenceTranslation.analysis import PATH as ANALYSIS_PATH
 
 
 PATH = Path(__file__).parent.resolve()
 MATCH_EXPECTED = "match_expected"
-SYNTAX_VALID = "syntax_valid"
+SYNTAX_VALID = "syntax_valid_malls"
 MODELS_PRETTY_NAMES = {
-    "qwen2.5_latest": "Qwen 2.5 (7.6B)",
-    "stablelm-zephyr_latest": "StableLM Zephyr (3B)",
-    "phi3.5_latest": "Phi 3.5 (3.8B)",
-    "phi3_latest": "Phi 3 (4B)",
-    "mistral_latest": "Mistral (7B)",
-    "openhermes_latest": "OpenHermes (7B)",
-    "medllama2_latest": "MedLlama 2 (7B)",
-    "qwen2.5_1.5b": "Qwen 2.5 (1.5B)",
-    "cyberuser42_DeepSeek-R1-Distill-Llama-8B_latest": "DeepSeek R1 Distill Llama (8B)",
-    "llama3_latest": "Llama 3 (8B)"
+    "Qwen/Qwen2.5-3B": "Qwen 2.5 (3B)",
+    "Qwen/Qwen2.5-7B": "Qwen 2.5 (7B)",
+    "Qwen/Qwen2.5-3B-Instruct": "Qwen 2.5 Instruct (3B)",
+    "Qwen/Qwen2.5-7B-Instruct": "Qwen 2.5 Instruct (7B)",
+    "Qwen/Qwen3.5-2B": "Qwen 3.5 (2B)",
+    "Qwen/Qwen3.5-4B": "Qwen 3.5 (4B)",
+    "Qwen/Qwen3.5-9B": "Qwen 3.5 (9B)",
+    "microsoft/Phi-3-mini-4k-instruct": "Phi-3 Mini 4k Instruct",
+    "mistralai/Mistral-7B-Instruct-v0.3": "Mistral 7B Instruct (v0.3)",
+    "stabilityai/stablelm-zephyr-3b": "StableLM Zephyr (3B)",
+    "meta-llama/Meta-Llama-3-8B-Instruct": "Meta Llama 3 Instruct (8B)",
+    "deepseek-ai/DeepSeek-R1-Distill-Llama-8B": "DeepSeek R1 Distill Llama (8B)",
+    "yuan-yang/LogicLLaMA-7b-naive-correction-delta-v0": "LogicLLaMA 7B Naive Correction",
+    "yuan-yang/LogicLLaMA-13b-direct-translate-delta-v0.1": "LogicLLaMA 13B Direct Translate"
 }
 
 

@@ -2,11 +2,10 @@ import re
 import pandas as pd
 from io import StringIO
 from pathlib import Path
-
-from evaluation.analysis.malls_fol_parser import is_valid_fol_malls
+from bluefairy.grammar.malls_fol_parser import is_valid_fol_malls
+from bluefairy.grammar.utils import compare_fol
 from evaluation.data import load_test_set
-from evaluation.results import PATH as RESULTS_PATH
-from evaluation.analysis.utils import compare_fol, parse_fol, is_valid_fol, is_valid_fol_closed
+from evaluation.sentenceTranslation.results import PATH as RESULTS_PATH
 
 PATH = Path(__file__).parent.resolve()
 
@@ -41,8 +40,10 @@ def load_sanitized_result(file_path: Path) -> pd.DataFrame:
                 logical_norm = f'"{logical_norm}'
             elif not logical_norm.startswith('"') and not logical_norm.endswith('"'):
                 logical_norm = f'"{logical_norm}"'
-            if logical_norm.count('"') % 2 != 0:
+            if logical_norm[:-2] == '""':
                 logical_norm = logical_norm[:-1]
+            if logical_norm.count('"') != 2:
+                logical_norm = '""'
             sanitized_line = f'{stakeholder},{textual_norm},{logical_norm}\n'
             sanitized_lines.append(sanitized_line)
         else:
@@ -86,10 +87,6 @@ def validate_model_translations(prediction: pd.DataFrame, expected: pd.DataFrame
         lambda row: compare_fol(row['PredictedFOL'], row['ExpectedFOL']),
         axis=1
     )
-    # Check syntax correctness of PredictedFOL
-    merged['syntax_valid'] = merged['PredictedFOL'].apply(
-        lambda fol: is_valid_fol_closed(fol)
-    )
     # Check syntax correctness using the original MALLS dataset parser
     merged['syntax_valid_malls'] = merged['PredictedFOL'].apply(
         lambda fol: is_valid_fol_malls(fol)
@@ -109,10 +106,8 @@ if __name__ == "__main__":
         # Print accuracy summary
         total = len(validation_df)
         correct = validation_df['match_expected'].sum()
-        syntax_correct = validation_df['syntax_valid'].sum()
         print(f"Total samples: {total}")
         print(f"Correctly matched expected: {correct} ({(correct / total) * 100:.2f}%)")
-        print(f"Syntax valid: {syntax_correct} ({(syntax_correct / total) * 100:.2f}%)")
         print(f"Syntax valid (MALLS parser): {validation_df['syntax_valid_malls'].sum()} ({(validation_df['syntax_valid_malls'].sum() / total) * 100:.2f}%)")
         # Save validation results
         validation_file = PATH / f"validation_{result_file.name}"
