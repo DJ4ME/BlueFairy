@@ -51,7 +51,7 @@ class HuggingFaceLanguageModel(LanguageModel):
         self.model = AutoModelForCausalLM.from_pretrained(
             model_name,
             cache_dir=cache_dir,
-            torch_dtype=dtype if hasattr(self.model, "to") else None,
+            torch_dtype=dtype,
             device_map="auto" if device == "cuda" else None,
         )
 

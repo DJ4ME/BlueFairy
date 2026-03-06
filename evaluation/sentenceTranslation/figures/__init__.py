@@ -16,10 +16,17 @@ MODELS_PRETTY_NAMES = {
     "Qwen/Qwen3.5-2B": "Qwen 3.5 (2B)",
     "Qwen/Qwen3.5-4B": "Qwen 3.5 (4B)",
     "Qwen/Qwen3.5-9B": "Qwen 3.5 (9B)",
+
+    "meta-llama/Meta-Llama-3-8B": "Meta Llama 3 (8B)",
+    "meta-llama/Meta-Llama-3-8B-Instruct": "Meta Llama 3 Instruct (8B)",
+    "meta-llama/Llama-3.1-8B": "Llama 3.1 (8B)",
+    "meta-llama/Llama-3.1-8B-Instruct": "Llama 3.1 Instruct (8B)",
+    "meta-llama/Llama-3.2-3B": "Llama 3.2 (3B)",
+    "meta-llama/Llama-3.2-3B-Instruct": "Llama 3.2 Instruct (3B)",
+
     "microsoft/Phi-3-mini-4k-instruct": "Phi-3 Mini 4k Instruct",
     "mistralai/Mistral-7B-Instruct-v0.3": "Mistral 7B Instruct (v0.3)",
     "stabilityai/stablelm-zephyr-3b": "StableLM Zephyr (3B)",
-    "meta-llama/Meta-Llama-3-8B-Instruct": "Meta Llama 3 Instruct (8B)",
     "deepseek-ai/DeepSeek-R1-Distill-Llama-8B": "DeepSeek R1 Distill Llama (8B)",
     "yuan-yang/LogicLLaMA-7b-naive-correction-delta-v0": "LogicLLaMA 7B Naive Correction",
     "yuan-yang/LogicLLaMA-13b-direct-translate-delta-v0.1": "LogicLLaMA 13B Direct Translate"
