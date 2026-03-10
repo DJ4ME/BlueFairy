@@ -1,5 +1,3 @@
-import torch
-import pynvml
 from bluefairy.nouns import Stakeholder
 from bluefairy.nouns.utils import TextualNorm, LogicalNorm
 from bluefairy.prompts import load_system_prompt, PromptTask, PATH
@@ -48,6 +46,18 @@ def run_norms_translation(
     """
     Translates textual norms into logical norms for each stakeholder with optional batching for HF.
     """
+
+    system_prompt = load_system_prompt(PromptTask.norms_translation)
+    system_prompt = system_prompt.replace(
+        "{FEW_SHOT_EXAMPLES}" if examples != "" else "\nEXAMPLES\n{FEW_SHOT_EXAMPLES}\n---",
+        examples
+    )
+
+    model = provider.use(
+        OLLAMA_MODEL if model_name == "" else model_name,
+        system_prompt
+    )
+
     with open(output_file, mode='w', encoding='utf-8') as f:
         f.write(HEADER)
 
@@ -64,7 +74,7 @@ def run_norms_translation(
             batch_norms = all_norms[i:i+batch_size]
             batch_stakeholders = all_stakeholders[i:i+batch_size]
 
-            logical_norms = provider.use(model_name, examples).ask(
+            logical_norms = model.ask(
                 batch_norms,
                 max_output=256,
                 temperature=DEFAULT_TEMPERATURE,
