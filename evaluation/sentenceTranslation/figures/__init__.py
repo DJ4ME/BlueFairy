@@ -29,7 +29,13 @@ MODELS_PRETTY_NAMES = {
     "stabilityai/stablelm-zephyr-3b": "StableLM Zephyr (3B)",
     "deepseek-ai/DeepSeek-R1-Distill-Llama-8B": "DeepSeek R1 Distill Llama (8B)",
     "yuan-yang/LogicLLaMA-7b-naive-correction-delta-v0": "LogicLLaMA 7B Naive Correction",
-    "yuan-yang/LogicLLaMA-13b-direct-translate-delta-v0.1": "LogicLLaMA 13B Direct Translate"
+    "yuan-yang/LogicLLaMA-13b-direct-translate-delta-v0.1": "LogicLLaMA 13B Direct Translate",
+
+    'Qwen_Qwen2.5-7B-Instruct_hf': "Qwen 2.5 Instruct (7B)",
+    'stabilityai_stablelm-zephyr-3b_hf': "StableLM Zephyr (3B)",
+    'microsoft_Phi-3-mini-4k-instruct_hf': "Microsoft Phi 3.1 Instruct (7B)",
+    'mistralai_Mistral-7B-Instruct-v0.3_hf': "Mistral 7B Instruct (7B)",
+    'meta-llama_Meta-Llama-3-8B-Instruct_hf': "Meta Llama 3.8 Instruct (7B)"
 }
 
 
@@ -91,7 +97,7 @@ def plot_llm_performance(
     plt.title('LLM Performance Comparison')
     plt.ylim(0, min(100, max(examples_values + no_examples_values) + 10))
     plt.xticks(x, models, rotation=45, ha='right')
-    plt.legend(loc='upper left')
+    plt.legend(loc='upper right')
 
     plt.tight_layout()
     plt.savefig(output_file)

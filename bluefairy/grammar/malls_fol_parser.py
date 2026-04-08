@@ -4,6 +4,8 @@
 # This is used as a benchmark to validate our own FOL parser written in a more structured way with Lark.
 
 import re
+import signal
+
 import nltk
 from copy import deepcopy
 import numpy as np
@@ -67,11 +69,24 @@ def is_valid_fol_malls(formula: str) -> bool:
     if not isinstance(formula, str):
         return False
 
+    class _ParseTimeout(Exception):
+        pass
+
+    def _timeout_handler(signum, frame):
+        raise _ParseTimeout()
+
+    previous_handler = signal.signal(signal.SIGALRM, _timeout_handler)
+    signal.alarm(10)
     try:
         tree = parse_text_fol_to_tree(formula)
         return tree is not None
+    except _ParseTimeout:
+        return False
     except Exception:
         return False
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, previous_handler)
 
 
 def reorder_quantifiers(rule_str):
