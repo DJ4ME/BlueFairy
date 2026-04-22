@@ -92,9 +92,9 @@ def plot_llm_performance(
     plt.bar([i + bar_width / 2 for i in x], no_examples_values, width=bar_width, color='orange', label='No Examples')
 
     # Add labels and legend
-    plt.xlabel('LLM Models')
+    plt.xlabel('')
     plt.ylabel(y_axis_title)
-    plt.title('LLM Performance Comparison')
+    plt.title('')
     plt.ylim(0, min(100, max(examples_values + no_examples_values) + 10))
     plt.xticks(x, models, rotation=45, ha='right')
     plt.legend(loc='upper right')
@@ -125,5 +125,5 @@ if __name__ == "__main__":
     # Keep the shared column MATCH_EXPECTED and rename using the model name
     merged_results_match = merge_results(all_result_files, MATCH_EXPECTED)
     merged_results_syntax = merge_results(all_result_files, SYNTAX_VALID)
-    plot_llm_performance(merged_results_match, "Percentage of correct matching formulas", PATH / "llm_performance.pdf")
-    plot_llm_performance(merged_results_syntax, "Percentage of syntactically valid formulas", PATH / "llm_syntax_performance.pdf")
+    plot_llm_performance(merged_results_match, "Percentage of correct matching formulae", PATH / "llm_performance.pdf")
+    plot_llm_performance(merged_results_syntax, "Percentage of syntactically valid formulae", PATH / "llm_syntax_performance.pdf")

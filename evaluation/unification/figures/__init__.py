@@ -1,11 +1,12 @@
 from collections import defaultdict
 from pathlib import Path
-
 import pandas as pd
 from matplotlib.cm import ScalarMappable
 from matplotlib.colors import Normalize
 import matplotlib.pyplot as plt
 import numpy as np
+import networkx as nx
+from scipy.spatial.distance import squareform
 from matplotlib.colors import LinearSegmentedColormap
 from bluefairy.grammar.utils import PRED_KEY
 from bluefairy.nouns.embedding import generate_predicate_embedding_sentences, build_embedding_space, \
@@ -14,9 +15,10 @@ from bluefairy.nouns.graph import build_predicate_unification_map
 from bluefairy.nouns.lexical_metrics import build_predicate_lexical_similarity_matrix
 from bluefairy.nouns.unification import collect_predicates, create_predicate_terms_matrices, create_predicate_arity_matrix, compute_similarity_scores
 from evaluation.data import load_test_set
-from evaluation.unification.figures.generate_pca_scatter_plots import plot_embedding_pca_2d, plot_embedding_pca_3d
 from evaluation.unification.utils import initialize_components, create_predicate_merge_mappings, TRANSFORMER
 from evaluation.unification.tables import PATH as TABLES_PATH
+from evaluation.sentenceTranslation.results import PATH as RESULTS_PATH
+from evaluation.sentenceTranslation.analysis import load_sanitized_result
 
 PATH = Path(__file__).parent.resolve()
 
@@ -135,9 +137,6 @@ def generate_predicate_merging_plot(
             )
             data.append([alpha, threshold, number_of_merges[-1], number_of_clusters[-1]])
 
-        df_data = pd.DataFrame(data, columns=["Alpha", "Threshold", "NumMerges", "NumNonTrivialClusters"])
-        df_data.to_csv(TABLES_PATH / 'predicate_merging_data.csv', index=False)
-
         colour_value = 1.0 - alpha_norm(alpha)
 
         ax.plot(
@@ -154,6 +153,9 @@ def generate_predicate_merging_plot(
             color=cluster_cmap(colour_value),
             linewidth=2
         )
+
+    df_data = pd.DataFrame(data, columns=["Alpha", "Threshold", "NumMerges", "NumNonTrivialClusters"])
+    df_data.to_csv(TABLES_PATH / 'predicate_merging_data.csv', index=False)
 
     ax.set_title("Predicate Merging and Clustering Across Alpha Values")
     ax.set_xlabel("Similarity Threshold")
@@ -177,76 +179,103 @@ def generate_predicate_merging_plot(
 
 
 def plot_unification_bubble_cloud(
-    unification_map: dict[PRED_KEY, PRED_KEY],
+    unification_map: dict,
     output_file: Path,
     title: str = "Predicate Unification Clusters",
-    size_scale: int = 600,
+    size_scale: int = 200,
     seed: int = 0,
 ):
-    rng = np.random.default_rng(seed)
-
-    rep_to_cluster: dict[PRED_KEY, set[PRED_KEY]] = defaultdict(set)
+    # ----------------------------
+    # Build clusters
+    # ----------------------------
+    rep_to_cluster = defaultdict(set)
     for pred, rep in unification_map.items():
         rep_to_cluster[rep].add(pred)
 
-    clusters = [
-        (rep, members)
-        for rep, members in rep_to_cluster.items()
-        if len(members) > 1
-    ]
-
+    clusters = [(rep, members) for rep, members in rep_to_cluster.items() if len(members) > 1]
     if not clusters:
         return
 
     reps = [rep for rep, _ in clusters]
-    sizes = [len(members) for _, members in clusters]
+    sizes = np.array([len(members) for _, members in clusters])
 
-    coords = rng.normal(0, 1, size=(len(reps), 2))
-    node_sizes = [s * size_scale for s in sizes]
+    # ----------------------------
+    # Build graph (structure-aware layout)
+    # ----------------------------
+    G = nx.Graph()
 
-    plt.figure(figsize=(10, 8))
+    # add nodes with size attribute
+    for rep, size in zip(reps, sizes):
+        G.add_node(rep, size=size)
 
-    plt.scatter(
-        coords[:, 0],
-        coords[:, 1],
-        s=node_sizes,
-        alpha=0.85,
-        edgecolors="black"
+    # fully connected graph for layout stability (no visual edges)
+    for i in range(len(reps)):
+        for j in range(i + 1, len(reps)):
+            G.add_edge(reps[i], reps[j])
+
+    pos = nx.spring_layout(G, seed=seed, k=2.5 / np.sqrt(len(G.nodes)))
+
+    # ----------------------------
+    # Plot
+    # ----------------------------
+    plt.figure(figsize=(11, 8))
+
+    node_sizes = sizes * size_scale
+    node_colors = sizes
+    labels = {
+        rep: rep[0]
+        for rep, members in clusters
+        if len(members) > 7
+    }
+
+    nodes = nx.draw_networkx_nodes(
+        G,
+        pos,
+        node_size=node_sizes,
+        node_color=node_colors,
+        cmap=plt.cm.viridis,
+        alpha=0.9,
+        linewidths=1.2,
+        edgecolors="black",
     )
 
-    for (x, y), rep, size in zip(coords, reps, sizes):
-        plt.text(
-            x,
-            y,
-            f"{rep[0]}/{rep[1]}\n|C|={size}",
-            ha="center",
-            va="center",
-            fontsize=8
-        )
+    nx.draw_networkx_labels(
+        G,
+        pos,
+        labels=labels,
+        font_size=10,
+        font_color="black",
+    )
 
     plt.title(title)
     plt.axis("off")
+    plt.colorbar(nodes, label="Cluster size")
     plt.tight_layout()
-    plt.savefig(output_file)
+    plt.savefig(output_file, dpi=300)
     plt.close()
 
 
 if __name__ == "__main__":
-    test_set = load_test_set()
+    # test_set = load_test_set()
+    test_set = load_sanitized_result(RESULTS_PATH / "Qwen_Qwen2.5-7B-Instruct_hf_examples.csv")
+    test_set = test_set.iloc[:, 1:3]
+    test_set.columns = ['NL', 'FOL']
     fol_formulae = test_set['FOL'].tolist()
 
     alphas = [0.1 * i for i in range(0, 11)]
-    alpha = 1
     thresholds = [0.5 + i * 0.025 for i in range(1, 21)]
 
-    generate_predicate_merging_plot(
-        fol_formulae=fol_formulae,
-        alphas=alphas,
-        thresholds=thresholds,
-        output_file=PATH / 'predicate_merging_plot.pdf'
-    )
+    #generate_predicate_merging_plot(
+    #    fol_formulae=fol_formulae,
+    #    alphas=alphas,
+    #    thresholds=thresholds,
+    #    output_file=PATH / 'predicate_merging_plot.pdf'
+    #)
 
     # Example of plotting a similarity graph
+
+    alpha = 0.1
+    thresholds = [0.9, 2]
     predicates, matrix = initialize_components(fol_formulae, alpha)
     maps = create_predicate_merge_mappings(thresholds[:-1], predicates, matrix)
 
@@ -255,5 +284,5 @@ if __name__ == "__main__":
         plot_unification_bubble_cloud(
             unification_map=maps[i],
             output_file=plot_output_file,
-            title=f"Predicate Similarity Graph (Threshold={t:.3f})"
+            title=f"Predicate Clusters (Alpha={alpha:.1f}, Threshold={t:.1f})"
         )

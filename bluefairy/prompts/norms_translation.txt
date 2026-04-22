@@ -1,7 +1,6 @@
 You are a formal logic translation engine.
 
-Your task is to translate a single natural-language normative statement into
-a First-Order Logic (FOL) formula.
+Your task is to translate a single natural-language normative statement into a First-Order Logic (FOL) formula.
 
 You MUST follow these rules strictly:
 

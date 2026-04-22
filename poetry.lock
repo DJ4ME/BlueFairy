@@ -412,6 +412,22 @@ files = [
 ]
 
 [[package]]
+name = "circlify"
+version = "0.15.1"
+description = "Circle packing algorithm for Python"
+optional = false
+python-versions = ">=3.9"
+groups = ["main"]
+files = [
+    {file = "circlify-0.15.1-py3-none-any.whl", hash = "sha256:5905236d60fa8e8adc6e10812392df7da274ab7454916d4a98f9a913eb474a1f"},
+    {file = "circlify-0.15.1.tar.gz", hash = "sha256:54103d82ab679128edb4cb77a0a1d8501935ca866a2dd8ae5605650508621bc9"},
+]
+
+[package.extras]
+develop = ["commitizen (>=2.28.0)", "coverage (>=5.3)", "coveralls (>=3.3.1)", "hypothesis (>=6.50.1)", "matplotlib (>=3.5.2)", "pre-commit (>=2.19.0)", "ruff (>=0.1.0)", "wheel (>=0.37.1)"]
+test = ["coverage (>=5.3)", "coveralls (>=3.3.1)", "hypothesis (>=6.50.1)", "ruff (>=0.1.0)"]
+
+[[package]]
 name = "click"
 version = "8.3.1"
 description = "Composable command line interface toolkit"
@@ -4531,4 +4547,4 @@ dev = ["pytest", "setuptools"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<3.15"
-content-hash = "02660855e252074989f6f782fcda1856c4fc07aa70c40c1286dcb3c17fc5c44b"
+content-hash = "0ece188c3133b9ee22dd97cd0b8831aba1abc07fa910e406cfc6d4048cba0bc8"
